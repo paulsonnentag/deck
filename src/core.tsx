@@ -1,5 +1,28 @@
 const OVERRIDES_MAP = Symbol("overrides_map");
 
+export const editorState = {
+  changeListeners: [] as (() => void)[],
+
+  selectedNode: null,
+
+  setSelectedNode(node: any) {
+    this.selectedNode = node;
+    this._notifyChangeListeners();
+  },
+
+  addChangeListener(listener: () => void) {
+    this.changeListeners.push(listener);
+  },
+
+  removeChangeListener(listener: () => void) {
+    this.changeListeners = this.changeListeners.filter((l) => l !== listener);
+  },
+
+  _notifyChangeListeners() {
+    this.changeListeners.forEach((listener) => listener());
+  },
+};
+
 const Obj = {
   $override(object: any, props: any) {
     const self = this as any;
@@ -89,11 +112,25 @@ export const Card = Obj.$extend({
   y: 0,
   children: [],
 
-  _resolvedChildren() {
+  _resolvedChildren: new WeakMap<Record<string, any>, Record<string, any>>(),
+
+  _getResolvedChildren() {
+    if (!Object.prototype.hasOwnProperty.call(this, "_resolvedChildren")) {
+      this._resolvedChildren = new WeakMap();
+    }
+
     return this.children.map((child: any) => {
-      return Object.assign(Object.create(this.$resolve(child)), {
+      if (this._resolvedChildren.has(child)) {
+        return this._resolvedChildren.get(child);
+      }
+
+      const resolvedChild = Object.assign(Object.create(this.$resolve(child)), {
         $parent: this,
       });
+
+      this._resolvedChildren.set(child, resolvedChild);
+
+      return resolvedChild;
     });
   },
 
@@ -105,23 +142,32 @@ export const Card = Obj.$extend({
     };
 
     return (
-      <div style={style} className="border border-gray-300 absolute" key={key}>
+      <div
+        style={style}
+        className={`border absolute ${
+          editorState.selectedNode === this
+            ? "border-blue-500"
+            : "border-gray-300"
+        }`}
+        key={key}
+        onClick={(event) => {
+          console.log("clicked");
+          event.stopPropagation();
+          editorState.setSelectedNode(this);
+        }}
+        draggable
+      >
         <div className="w-full h-full relative">
-          {this._resolvedChildren().map((child: any, index: number) => {
-            if (!child) {
-              console.log(this);
-              debugger;
-            }
-
-            return child.$view(index);
-          })}
+          {this._getResolvedChildren().map((child: any, index: number) =>
+            child.$view(index)
+          )}
         </div>
       </div>
     );
   },
 
   $field(name: string) {
-    const child = this._resolvedChildren().find(
+    const child = this._getResolvedChildren().find(
       (child: any) => child.name === name
     );
 
@@ -152,10 +198,11 @@ export const Field = Obj.$extend({
     const { width, x, y } = this;
 
     const readOnly = this.value instanceof Computation || this.readOnly;
+    const isSelected = editorState.selectedNode === this;
 
     const style: React.CSSProperties = {
       transform: `translate(${x ?? 0}px, ${y ?? 0}px)`,
-      zIndex: (x ?? 0) + (y ?? 0),
+      zIndex: isSelected ? 1000 : (x ?? 0) + (y ?? 0),
     };
 
     if (width !== undefined) {
@@ -165,12 +212,33 @@ export const Field = Obj.$extend({
     const value = this.$evaluate();
 
     return (
-      <div style={style} className="absolute bg-white" key={key}>
+      <div
+        style={style}
+        className={`absolute border bg-white ${
+          isSelected ? "border-blue-500" : "border-white"
+        }`}
+        key={key}
+        draggable
+      >
         {readOnly ? (
-          <div className="w-full">{value.toString()}</div>
+          <div
+            className="w-full"
+            onClick={(event) => {
+              console.log("clicked", this);
+              event.stopPropagation();
+              event.preventDefault();
+              editorState.setSelectedNode(this);
+            }}
+          >
+            {value.toString()}
+          </div>
         ) : (
           <input
-            className="w-full"
+            onClick={(event) => {
+              event.stopPropagation();
+              editorState.setSelectedNode(this);
+            }}
+            className="w-full outline-none"
             readOnly={readOnly}
             type="text"
             value={value.toString()}

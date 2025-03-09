@@ -1,14 +1,17 @@
 import "./index.css";
 import { createRoot } from "react-dom/client";
-import { Card, computation, Computed, Field } from "./core";
+import { Card, computation, Field } from "./core";
+import Editor from "./Editor";
 
 const eventTitle = Field.$extend({
+  name: "title",
   x: 10,
   y: 10,
   value: "Meeting with John",
 });
 
 const eventStart = Field.$extend({
+  name: "start",
   x: 10,
   y: 50,
   value: computation(
@@ -18,6 +21,7 @@ const eventStart = Field.$extend({
 });
 
 const eventEnd = Field.$extend({
+  name: "end",
   x: 100,
   y: 50,
   value: computation(
@@ -35,6 +39,7 @@ const eventDash = Field.$extend({
 });
 
 const event = Card.$extend({
+  name: "event",
   width: 400,
   height: 100,
   x: 100,
@@ -44,6 +49,7 @@ const event = Card.$extend({
 
 const event2 = event.$extend(
   {
+    name: "event2",
     x: 100,
     y: 210,
   },
@@ -55,4 +61,4 @@ const main = Card.$extend({
 });
 
 const root = createRoot(document.getElementById("root") as HTMLElement);
-root.render(main.$view());
+root.render(<Editor root={main} />);
