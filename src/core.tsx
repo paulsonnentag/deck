@@ -190,10 +190,15 @@ export const Card = Obj.$extend({
             (event.target as HTMLElement).style.visibility = "hidden";
           }, 0);
           event.dataTransfer.effectAllowed = "move";
+          const mouseX =
+            event.clientX - event.currentTarget.getBoundingClientRect().left;
+          const mouseY =
+            event.clientY - event.currentTarget.getBoundingClientRect().top;
+
           editorState.dragState = {
             node: this,
-            offsetX: event.clientX - this.x,
-            offsetY: event.clientY - this.y,
+            offsetX: mouseX,
+            offsetY: mouseY,
           };
         }}
         onDragEnd={(event) => {
@@ -318,12 +323,18 @@ export const Field = Obj.$extend({
             (event.target as HTMLElement).style.visibility = "hidden";
           }, 0);
 
+          // mouse position relative to target
+          const mouseX =
+            event.clientX - event.currentTarget.getBoundingClientRect().left;
+          const mouseY =
+            event.clientY - event.currentTarget.getBoundingClientRect().top;
+
           event.stopPropagation();
           event.dataTransfer.effectAllowed = "move";
           editorState.dragState = {
             node: this,
-            offsetX: 0, // event.clientX - this.x,
-            offsetY: 0, // event.clientY - this.y,
+            offsetX: mouseX,
+            offsetY: mouseY,
           };
         }}
         onDragEnd={(event) => {
@@ -353,7 +364,10 @@ export const Field = Obj.$extend({
             readOnly={readOnly}
             type="text"
             value={value.toString()}
-            onChange={(event) => (this.value = event.target.value)}
+            onChange={(event) => {
+              this.value = event.target.value;
+              editorState.notifyChangeListeners();
+            }}
           />
         )}
       </div>
