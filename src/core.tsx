@@ -5,11 +5,15 @@ export const editorState = {
 
   selectedNode: null as null | Record<string, any>,
 
-  draggedNode: null as null | Record<string, any>,
+  dragState: null as null | {
+    node: any;
+    offsetX: number;
+    offsetY: number;
+  },
 
   setSelectedNode(node: any) {
     this.selectedNode = node;
-    this._notifyChangeListeners();
+    this.notifyChangeListeners();
   },
 
   addChangeListener(listener: () => void) {
@@ -20,7 +24,7 @@ export const editorState = {
     this.changeListeners = this.changeListeners.filter((l) => l !== listener);
   },
 
-  _notifyChangeListeners() {
+  notifyChangeListeners() {
     this.changeListeners.forEach((listener) => listener());
   },
 };
@@ -84,6 +88,10 @@ const Obj = {
   $field(name: string) {
     return null;
   },
+
+  $unwrap() {
+    return this;
+  },
 };
 
 class Computation {
@@ -126,20 +134,36 @@ export const Card = Obj.$extend({
         return this._resolvedChildren.get(child);
       }
 
-      const resolvedChild = Object.assign(Object.create(this.$resolve(child)), {
-        $parent: this,
-      });
+      if (child.$parent) {
+        throw new Error("invalid state: child already has a parent");
+      }
 
-      this._resolvedChildren.set(child, resolvedChild);
+      const resolvedChild = this.$resolve(child);
 
-      return resolvedChild;
+      if (resolvedChild.$parent) {
+        throw new Error("invalid state: resolved child already has a parent");
+      }
+
+      const resolvedChildWithParent = Object.assign(
+        Object.create(resolvedChild),
+        {
+          $parent: this,
+          $unwrap() {
+            return resolvedChild;
+          },
+        }
+      );
+
+      this._resolvedChildren.set(child, resolvedChildWithParent);
+
+      return resolvedChildWithParent;
     });
   },
 
   $view(key?: React.Key) {
     const style = {
-      width: this.width !== undefined ? `${this.width}px` : "100%",
-      height: this.height !== undefined ? `${this.height}px` : "100%",
+      width: this.width != null ? `${this.width}px` : "100%",
+      height: this.height != null ? `${this.height}px` : "100%",
       transform: `translate(${this.x ?? 0}px, ${this.y ?? 0}px)`,
     };
 
@@ -153,32 +177,78 @@ export const Card = Obj.$extend({
         }`}
         key={key}
         onClick={(event) => {
-          console.log("clicked");
+          if (!this.$parent) {
+            return;
+          }
+
           event.stopPropagation();
           editorState.setSelectedNode(this);
         }}
         onDragStart={(event) => {
+          event.stopPropagation();
           setTimeout(() => {
             (event.target as HTMLElement).style.visibility = "hidden";
           }, 0);
           event.dataTransfer.effectAllowed = "move";
-          editorState.draggedNode = this;
+          editorState.dragState = {
+            node: this,
+            offsetX: event.clientX - this.x,
+            offsetY: event.clientY - this.y,
+          };
         }}
         onDragEnd={(event) => {
           (event.target as HTMLElement).style.visibility = "visible";
+          editorState.dragState = null;
         }}
-        draggable
+        draggable={this.$parent != undefined}
         onDragOver={(event) => {
           event.preventDefault();
           event.stopPropagation();
         }}
         onDragEnter={(event) => {
+          (event.target as HTMLElement).classList.add("bg-gray-100");
           event.preventDefault();
           event.stopPropagation();
-          console.log("dragging over");
+        }}
+        onDragLeave={(event) => {
+          (event.target as HTMLElement).classList.remove("bg-gray-100");
         }}
         onDrop={(event) => {
-          console.log("dropped", this.draggedNode);
+          (event.target as HTMLElement).classList.remove("bg-gray-100");
+          event.stopPropagation();
+
+          if (!editorState.dragState) {
+            throw new Error("invalid state: no drag state");
+          }
+
+          const { node, offsetX, offsetY } = editorState.dragState;
+
+          const oldParent = node.$parent;
+          const newParent = this.$unwrap();
+
+          const draggedNode = node.$unwrap() as Record<string, any>;
+
+          // get position where stuff was dragged relative to the card
+          const draggedX =
+            event.clientX -
+            event.currentTarget.getBoundingClientRect().left -
+            offsetX;
+          const draggedY =
+            event.clientY -
+            event.currentTarget.getBoundingClientRect().top -
+            offsetY;
+
+          draggedNode.x = draggedX;
+          draggedNode.y = draggedY;
+
+          if (oldParent !== newParent) {
+            oldParent.children = oldParent.children.filter(
+              (child: any) => child !== node
+            );
+            newParent.children.push(node.$unwrap());
+          }
+
+          editorState.notifyChangeListeners();
         }}
       >
         <div className="w-full h-full relative">
@@ -248,13 +318,17 @@ export const Field = Obj.$extend({
             (event.target as HTMLElement).style.visibility = "hidden";
           }, 0);
 
+          event.stopPropagation();
           event.dataTransfer.effectAllowed = "move";
-
-          console.log("dragging", this);
-          editorState.draggedNode = this;
+          editorState.dragState = {
+            node: this,
+            offsetX: 0, // event.clientX - this.x,
+            offsetY: 0, // event.clientY - this.y,
+          };
         }}
         onDragEnd={(event) => {
           (event.target as HTMLElement).style.visibility = "visible";
+          editorState.dragState = null;
         }}
       >
         {readOnly ? (
