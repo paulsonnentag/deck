@@ -3,7 +3,9 @@ const OVERRIDES_MAP = Symbol("overrides_map");
 export const editorState = {
   changeListeners: [] as (() => void)[],
 
-  selectedNode: null,
+  selectedNode: null as null | Record<string, any>,
+
+  draggedNode: null as null | Record<string, any>,
 
   setSelectedNode(node: any) {
     this.selectedNode = node;
@@ -144,7 +146,7 @@ export const Card = Obj.$extend({
     return (
       <div
         style={style}
-        className={`border absolute ${
+        className={`border absolute bg-white ${
           editorState.selectedNode === this
             ? "border-blue-500"
             : "border-gray-300"
@@ -155,7 +157,29 @@ export const Card = Obj.$extend({
           event.stopPropagation();
           editorState.setSelectedNode(this);
         }}
+        onDragStart={(event) => {
+          setTimeout(() => {
+            (event.target as HTMLElement).style.visibility = "hidden";
+          }, 0);
+          event.dataTransfer.effectAllowed = "move";
+          editorState.draggedNode = this;
+        }}
+        onDragEnd={(event) => {
+          (event.target as HTMLElement).style.visibility = "visible";
+        }}
         draggable
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          console.log("dragging over");
+        }}
+        onDrop={(event) => {
+          console.log("dropped", this.draggedNode);
+        }}
       >
         <div className="w-full h-full relative">
           {this._getResolvedChildren().map((child: any, index: number) =>
@@ -219,6 +243,19 @@ export const Field = Obj.$extend({
         }`}
         key={key}
         draggable
+        onDragStart={(event) => {
+          setTimeout(() => {
+            (event.target as HTMLElement).style.visibility = "hidden";
+          }, 0);
+
+          event.dataTransfer.effectAllowed = "move";
+
+          console.log("dragging", this);
+          editorState.draggedNode = this;
+        }}
+        onDragEnd={(event) => {
+          (event.target as HTMLElement).style.visibility = "visible";
+        }}
       >
         {readOnly ? (
           <div
