@@ -49,59 +49,109 @@ const Obj = {
 
     return object;
   },
+
+  // catch all methods so $lookup and $evaluate don't throw an error if called on an object that dosn't implement them
+
+  $evaluate() {
+    return this;
+  },
+
+  $field(name: string) {
+    return null;
+  },
 };
 
-export const Computed = Obj.$extend({
-  source: "",
-  evaluate() {
-    console.log("evaluating", this.source);
+class Computation {
+  source: string;
 
+  constructor(source: string) {
+    this.source = source;
+  }
+
+  evaluate(self: Record<string, any>) {
     return new Function(
       "self",
       `with (self) {
-      return ${this.source};
-    }`
-    )(this);
-  },
-});
+  return ${this.source};
+}`
+    )(self);
+  }
+}
+
+export const computation = (source: string) => {
+  return new Computation(source);
+};
 
 export const Card = Obj.$extend({
-  $view(key?: React.Key) {
-    const self = this as any;
-    const { width, height, x, y, children } = self;
+  width: null,
+  height: null,
+  x: 0,
+  y: 0,
+  children: [],
 
+  _resolvedChildren() {
+    return this.children.map((child: any) => {
+      return Object.assign(Object.create(this.$resolve(child)), {
+        $parent: this,
+      });
+    });
+  },
+
+  $view(key?: React.Key) {
     const style = {
-      width: width !== undefined ? `${width}px` : "100%",
-      height: height !== undefined ? `${height}px` : "100%",
-      transform: `translate(${x ?? 0}px, ${y ?? 0}px)`,
+      width: this.width !== undefined ? `${this.width}px` : "100%",
+      height: this.height !== undefined ? `${this.height}px` : "100%",
+      transform: `translate(${this.x ?? 0}px, ${this.y ?? 0}px)`,
     };
 
     return (
       <div style={style} className="border border-gray-300 absolute" key={key}>
         <div className="w-full h-full relative">
-          {children
-            ? children.map((child: any, index: number) => {
-                const resolvedChild = self.$resolve(child);
+          {this._resolvedChildren().map((child: any, index: number) => {
+            if (!child) {
+              console.log(this);
+              debugger;
+            }
 
-                return resolvedChild.$view(index);
-              })
-            : null}
+            return child.$view(index);
+          })}
         </div>
       </div>
     );
   },
+
+  $field(name: string) {
+    const child = this._resolvedChildren().find(
+      (child: any) => child.name === name
+    );
+
+    if (!child) {
+      return null;
+    }
+
+    return child.$evaluate();
+  },
 });
 
 export const Field = Obj.$extend({
-  $view(key?: React.Key) {
-    const self = this as any;
-    const { width, x, y } = self;
+  width: null,
+  x: 0,
+  y: 0,
+  value: "",
+  readOnly: false,
 
-    let { value, readOnly } = self;
-    if (Object.prototype.isPrototypeOf.call(Computed, value)) {
-      readOnly = true;
-      value = value.evaluate();
+  $evaluate() {
+    if (this.value instanceof Computation) {
+      return this.value.evaluate(this);
     }
+
+    return this.value;
+  },
+
+  $view(key?: React.Key) {
+    const { width, x, y } = this;
+
+    const readOnly = this.value instanceof Computation || this.readOnly;
 
     const style: React.CSSProperties = {
       transform: `translate(${x ?? 0}px, ${y ?? 0}px)`,
@@ -112,17 +162,19 @@ export const Field = Obj.$extend({
       style.width = `${width}px`;
     }
 
+    const value = this.$evaluate();
+
     return (
       <div style={style} className="absolute bg-white" key={key}>
         {readOnly ? (
-          <div className="w-full">{value}</div>
+          <div className="w-full">{value.toString()}</div>
         ) : (
           <input
             className="w-full"
             readOnly={readOnly}
             type="text"
-            value={value}
-            onChange={(event) => (self.value = event.target.value)}
+            value={value.toString()}
+            onChange={(event) => (this.value = event.target.value)}
           />
         )}
       </div>

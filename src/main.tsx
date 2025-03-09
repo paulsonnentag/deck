@@ -1,6 +1,6 @@
 import "./index.css";
 import { createRoot } from "react-dom/client";
-import { Card, Computed, Field } from "./core";
+import { Card, computation, Computed, Field } from "./core";
 
 const eventTitle = Field.$extend({
   x: 10,
@@ -11,14 +11,18 @@ const eventTitle = Field.$extend({
 const eventStart = Field.$extend({
   x: 10,
   y: 50,
-  value: "10:00",
+  value: computation(
+    "Math.floor(8 + $parent.y / 50) + ':' + Math.floor(($parent.y % 50) / 50 * 60).toString().padStart(2, '0')"
+  ),
   width: 50,
 });
 
 const eventEnd = Field.$extend({
   x: 100,
   y: 50,
-  value: "11:00",
+  value: computation(
+    "Math.floor(8 + ($parent.y + $parent.height) / 50) + ':' + Math.floor((($parent.y + $parent.height) % 50) / 50 * 60).toString().padStart(2, '0')"
+  ),
   width: 50,
 });
 
@@ -32,7 +36,7 @@ const eventDash = Field.$extend({
 
 const event = Card.$extend({
   width: 400,
-  height: 150,
+  height: 100,
   x: 100,
   y: 100,
   children: [eventTitle, eventStart, eventDash, eventEnd],
@@ -41,13 +45,9 @@ const event = Card.$extend({
 const event2 = event.$extend(
   {
     x: 100,
-    y: 300,
+    y: 210,
   },
-  [
-    [eventTitle, { value: "Another meeting" }],
-    [eventStart, { value: Computed.$extend({ source: `Math.random()` }) }],
-    [eventEnd, { value: "13:00" }],
-  ]
+  [[eventTitle, { value: "Another meeting" }]]
 );
 
 const main = Card.$extend({
