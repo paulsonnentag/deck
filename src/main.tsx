@@ -6,7 +6,7 @@ root.className = "bg-gray-100 w-screen h-screen";
 
 type ToolType = "pointer" | "card";
 
-const cards: Card[] = [];
+let cards: Card[] = [];
 
 type CardToolState = {
   type: "card";
@@ -52,9 +52,19 @@ const setTool = (type: ToolType) => {
   }
 };
 
-const onKeyPress = (event: KeyboardEvent) => {
+const onKeyDown = (event: KeyboardEvent) => {
+  console.log(event.code);
+
   if (event.code === "KeyC") {
     setTool("card");
+  } else if (event.code === "Backspace") {
+    console.log("delete");
+
+    if (selectedCard) {
+      setSelectedCard(null);
+      selectedCard.destroy();
+      cards = cards.filter((card) => card !== selectedCard);
+    }
   }
 };
 
@@ -128,7 +138,7 @@ const onPointerUp = (event: PointerEvent) => {
   }
 };
 
-window.addEventListener("keypress", onKeyPress);
+window.addEventListener("keydown", onKeyDown);
 root.addEventListener("pointerdown", onPointerDown);
 root.addEventListener("pointermove", onPointerMove);
 root.addEventListener("pointerup", onPointerUp);
