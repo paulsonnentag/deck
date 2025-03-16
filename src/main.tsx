@@ -6,16 +6,17 @@ root.className = "bg-gray-100 w-screen h-screen";
 
 type ToolType = "pointer" | "card";
 
-let cards: Card[] = [];
-
 type CardToolState = {
   type: "card";
-  newCard?: Card;
+  state?: {
+    card: Card;
+    offset: { x: number; y: number };
+  };
 };
 
 type PointerToolState = {
   type: "pointer";
-  dragState?: {
+  state?: {
     card: Card;
     offset: { x: number; y: number };
   };
@@ -63,7 +64,6 @@ const onKeyDown = (event: KeyboardEvent) => {
     if (selectedCard) {
       setSelectedCard(null);
       selectedCard.destroy();
-      cards = cards.filter((card) => card !== selectedCard);
     }
   }
 };
@@ -73,9 +73,9 @@ const onPointerDown = (event: PointerEvent, card?: Card) => {
 
   if (toolState.type === "pointer") {
     if (card) {
-      const rect = card.element.getBoundingClientRect();
+      const rect = card.cardElement.getBoundingClientRect();
 
-      toolState.dragState = {
+      toolState.state = {
         card,
         offset: {
           x: event.clientX - rect.left,
@@ -87,54 +87,60 @@ const onPointerDown = (event: PointerEvent, card?: Card) => {
       setSelectedCard(null);
     }
   } else if (toolState.type === "card") {
-    // todo: handle pointer down on card
-    const card = new Card({
-      x: event.clientX,
-      y: event.clientY,
+    const offset = card ? card.getOffset() : { x: 0, y: 0 };
+
+    const newCard = new Card({
+      x: event.clientX - offset.x,
+      y: event.clientY - offset.y,
       width: 0,
       height: 0,
     });
 
-    card.on("pointerdown", onPointerDown);
-    card.mount(root);
-    cards.push(card);
+    newCard.on("pointerdown", onPointerDown);
 
-    toolState.newCard = card;
+    if (card) {
+      card.addChild(newCard);
+    } else {
+      newCard.mount(root);
+    }
+
+    toolState.state = {
+      card: newCard,
+      offset,
+    };
   }
 };
 
 const onPointerMove = (event: PointerEvent) => {
   if (event.isPrimary === false) return;
 
-  if (toolState.type === "pointer" && toolState.dragState) {
-    const { card, offset } = toolState.dragState;
+  if (toolState.type === "pointer" && toolState.state) {
+    const { card, offset } = toolState.state;
 
-    if (card && offset) {
-      card.x = event.clientX - offset.x;
-      card.y = event.clientY - offset.y;
-      card.reconcile();
-    }
-  } else if (toolState.type === "card") {
-    const { newCard } = toolState;
+    card.x = event.clientX - offset.x;
+    card.y = event.clientY - offset.y;
+    card.reconcile();
+  } else if (toolState.type === "card" && toolState.state) {
+    const { card, offset } = toolState.state;
 
-    if (newCard) {
-      newCard.width = event.clientX - newCard.x;
-      newCard.height = event.clientY - newCard.y;
-      newCard.reconcile();
-    }
+    card.width = event.clientX - card.x - offset.x;
+    card.height = event.clientY - card.y - offset.y;
+    card.reconcile();
   }
 };
 
 const onPointerUp = (event: PointerEvent) => {
   if (event.isPrimary === false) return;
 
-  if (toolState.type === "card" && toolState.newCard) {
-    setSelectedCard(toolState.newCard);
+  if (toolState.type === "card" && toolState.state) {
+    const { card } = toolState.state;
+
+    setSelectedCard(card);
     setTool("pointer");
   }
 
-  if (toolState.type === "pointer" && toolState.dragState) {
-    toolState.dragState = undefined;
+  if (toolState.type === "pointer" && toolState.state) {
+    toolState.state = undefined;
   }
 };
 
@@ -142,3 +148,25 @@ window.addEventListener("keydown", onKeyDown);
 root.addEventListener("pointerdown", onPointerDown);
 root.addEventListener("pointermove", onPointerMove);
 root.addEventListener("pointerup", onPointerUp);
+
+const card1 = new Card({
+  x: 100,
+  y: 100,
+  width: 100,
+  height: 100,
+});
+
+card1.on("pointerdown", onPointerDown);
+
+const card2 = new Card({
+  x: 10,
+  y: 10,
+  width: 10,
+  height: 10,
+});
+
+card2.on("pointerdown", onPointerDown);
+
+card1.mount(root);
+
+card1.addChild(card2);

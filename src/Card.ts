@@ -21,7 +21,8 @@ export class Card extends EventEmitter<CardEvents> {
   height: number;
 
   isSelected: boolean = false;
-  element: HTMLElement;
+  cardElement: HTMLElement;
+  childrenContainer: HTMLElement;
 
   children: Card[] = [];
 
@@ -32,9 +33,21 @@ export class Card extends EventEmitter<CardEvents> {
     this.width = config.width ?? 100;
     this.height = config.height ?? 100;
     this.onPointerDown = this.onPointerDown.bind(this);
-    this.element = document.createElement("div")!;
-    this.element.addEventListener("pointerdown", this.onPointerDown);
+    this.cardElement = document.createElement("div");
+    this.childrenContainer = document.createElement("div");
+    this.cardElement.appendChild(this.childrenContainer);
+
+    this.cardElement.addEventListener("pointerdown", this.onPointerDown);
     this.reconcile();
+  }
+
+  getOffset() {
+    // Get the position of this element relative to the screen
+    const rect = this.cardElement.getBoundingClientRect();
+    return {
+      x: rect.left,
+      y: rect.top,
+    };
   }
 
   onPointerDown(event: PointerEvent) {
@@ -43,14 +56,14 @@ export class Card extends EventEmitter<CardEvents> {
   }
 
   mount(container: HTMLElement) {
-    if (this.element.parentElement) {
-      this.element.parentElement.removeChild(this.element);
+    if (this.cardElement.parentElement) {
+      this.cardElement.parentElement.removeChild(this.cardElement);
     }
 
-    container.appendChild(this.element);
+    container.appendChild(this.cardElement);
 
     Object.values(this.children).forEach((child) => {
-      child.mount(this.element!);
+      child.mount(this.cardElement!);
     });
   }
 
@@ -59,16 +72,21 @@ export class Card extends EventEmitter<CardEvents> {
       child.destroy();
     });
 
-    this.element.removeEventListener("pointerdown", this.onPointerDown);
-    this.element.remove();
+    this.cardElement.removeEventListener("pointerdown", this.onPointerDown);
+    this.cardElement.remove();
   }
 
   reconcile() {
-    this.element.className = `absolute border bg-white ${
+    this.cardElement.className = `absolute border bg-white ${
       this.isSelected ? "border-blue-500 z-10" : "border-gray-300"
     }`;
-    this.element.style.width = `${this.width}px`;
-    this.element.style.height = `${this.height}px`;
-    this.element.style.transform = `translate(${this.x}px, ${this.y}px)`;
+    this.cardElement.style.width = `${this.width}px`;
+    this.cardElement.style.height = `${this.height}px`;
+    this.cardElement.style.transform = `translate(${this.x}px, ${this.y}px)`;
+  }
+
+  addChild(child: Card) {
+    this.children.push(child);
+    child.mount(this.childrenContainer);
   }
 }
