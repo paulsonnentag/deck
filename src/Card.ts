@@ -3,7 +3,6 @@ import { EventEmitter } from "eventemitter3";
 
 type CardEvents = {
   pointerdown: (event: PointerEvent, card: Card) => void;
-  click: (event: MouseEvent, card: Card) => void;
 };
 
 type CardConfig = {
@@ -33,22 +32,14 @@ export class Card extends EventEmitter<CardEvents> {
     this.width = config.width ?? 100;
     this.height = config.height ?? 100;
     this.onPointerDown = this.onPointerDown.bind(this);
-    this.onClick = this.onClick.bind(this);
-
     this.element = document.createElement("div")!;
     this.element.addEventListener("pointerdown", this.onPointerDown);
-    this.element.addEventListener("click", this.onClick);
     this.reconcile();
   }
 
   onPointerDown(event: PointerEvent) {
     event.stopPropagation();
     this.emit("pointerdown", event, this);
-  }
-
-  onClick(event: MouseEvent) {
-    event.stopPropagation();
-    this.emit("click", event, this);
   }
 
   mount(container: HTMLElement) {
