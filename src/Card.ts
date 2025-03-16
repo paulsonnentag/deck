@@ -74,7 +74,7 @@ export class Card extends EventEmitter<CardEvents> {
 
   reconcile() {
     this.element.className = `absolute border bg-white ${
-      this.isSelected ? "border-blue-500" : "border-gray-300"
+      this.isSelected ? "border-blue-500 z-10" : "border-gray-300"
     }`;
     this.element.style.width = `${this.width}px`;
     this.element.style.height = `${this.height}px`;

@@ -8,9 +8,23 @@ type ToolType = "pointer" | "card";
 
 const cards: Card[] = [];
 
-let selectedTool: ToolType = "pointer";
+type CardToolState = {
+  type: "card";
+  newCard?: Card;
+};
 
-let activeCard: Card | null = null;
+type PointerToolState = {
+  type: "pointer";
+  dragState?: {
+    card: Card;
+    offset: { x: number; y: number };
+  };
+};
+
+type ToolState = CardToolState | PointerToolState;
+
+let toolState: ToolState = { type: "pointer" };
+
 let selectedCard: Card | null = null;
 
 const setSelectedCard = (card: Card | null) => {
@@ -26,14 +40,15 @@ const setSelectedCard = (card: Card | null) => {
   }
 };
 
-const setTool = (tool: ToolType) => {
-  selectedTool = tool;
+const setTool = (type: ToolType) => {
+  document.body.classList.remove("cursor-crosshair");
 
-  if (tool === "card") {
+  if (type === "pointer") {
+    toolState = { type: "pointer" };
+  } else if (type === "card" && toolState.type !== "card") {
     setSelectedCard(null);
+    toolState = { type: "card" };
     document.body.classList.add("cursor-crosshair");
-  } else {
-    document.body.classList.remove("cursor-crosshair");
   }
 };
 
@@ -46,14 +61,23 @@ const onKeyPress = (event: KeyboardEvent) => {
 const onPointerDown = (event: PointerEvent, card?: Card) => {
   if (event.isPrimary === false) return;
 
-  if (selectedTool === "card") {
-    if (activeCard) {
-      activeCard.isSelected = false;
-      activeCard.reconcile();
+  if (toolState.type === "pointer") {
+    if (card) {
+      const rect = card.element.getBoundingClientRect();
+
+      toolState.dragState = {
+        card,
+        offset: {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        },
+      };
+      setSelectedCard(card);
+    } else {
+      setSelectedCard(null);
     }
-
+  } else if (toolState.type === "card") {
     // todo: handle pointer down on card
-
     const card = new Card({
       x: event.clientX,
       y: event.clientY,
@@ -62,37 +86,45 @@ const onPointerDown = (event: PointerEvent, card?: Card) => {
     });
 
     card.on("pointerdown", onPointerDown);
-    card.on("click", onCardClick);
     card.mount(root);
     cards.push(card);
-    activeCard = card;
-  }
-};
 
-const onCardClick = (event: MouseEvent, card: Card) => {
-  console.log("card clicked", card);
-  if (selectedTool === "pointer") {
-    setSelectedCard(card);
+    toolState.newCard = card;
   }
 };
 
 const onPointerMove = (event: PointerEvent) => {
   if (event.isPrimary === false) return;
 
-  if (selectedTool === "card" && activeCard) {
-    activeCard.width = event.clientX - activeCard.x;
-    activeCard.height = event.clientY - activeCard.y;
-    activeCard.reconcile();
+  if (toolState.type === "pointer" && toolState.dragState) {
+    const { card, offset } = toolState.dragState;
+
+    if (card && offset) {
+      card.x = event.clientX - offset.x;
+      card.y = event.clientY - offset.y;
+      card.reconcile();
+    }
+  } else if (toolState.type === "card") {
+    const { newCard } = toolState;
+
+    if (newCard) {
+      newCard.width = event.clientX - newCard.x;
+      newCard.height = event.clientY - newCard.y;
+      newCard.reconcile();
+    }
   }
 };
 
 const onPointerUp = (event: PointerEvent) => {
   if (event.isPrimary === false) return;
 
-  if (selectedTool === "card" && activeCard) {
-    setSelectedCard(activeCard);
-    activeCard = null;
+  if (toolState.type === "card" && toolState.newCard) {
+    setSelectedCard(toolState.newCard);
     setTool("pointer");
+  }
+
+  if (toolState.type === "pointer" && toolState.dragState) {
+    toolState.dragState = undefined;
   }
 };
 
