@@ -14,6 +14,9 @@ describe("object", () => {
       const original = new $Object({ x: 10, y: 20 });
       const copy = original.copy();
 
+      // should have different ids
+      expect(original.id).not.toBe(copy.id);
+
       expect(copy.get("x")).toBe(10);
       expect(copy.get("y")).toBe(20);
 
@@ -31,6 +34,24 @@ describe("object", () => {
       copy.prototype.set("z", 30);
       expect(original.get("z")).toBe(30);
       expect(copy.get("z")).toBe(30);
+    });
+
+    test("create a layer object", () => {
+      const original = new $Object({ x: 10, y: 20 });
+      const layer = original.layer();
+
+      expect(layer.get("x")).toBe(10);
+      expect(layer.get("y")).toBe(20);
+      expect(layer.id).toBe(original.id);
+
+      // modifying the layer should not affect the original
+      layer.set("x", 100);
+      expect(original.get("x")).toBe(10);
+      expect(layer.get("x")).toBe(100);
+
+      // modifying the original should not affect the layer object if it doesn't override the property
+      original.set("y", 200);
+      expect(layer.get("y")).toBe(200);
     });
   });
 
