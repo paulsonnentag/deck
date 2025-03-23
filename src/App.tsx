@@ -26,19 +26,21 @@ export const Editor = ({ rootCard }: EditorProps) => {
   const [tool, setTool] = useState<ToolState>({ type: "pointer" });
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
-  const onKeyDown = useCallback((event: KeyboardEvent) => {
-    console.log("key down", event.code);
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      console.log("key down", event.code);
 
-    if (event.code === "KeyC" || event.code === "KeyR") {
-      setTool({ type: "card" });
-    }
-    // } else if (event.code === "Backspace") {
-    //   if (selectedCard) {
-    //     setSelectedCard(null);
-    //     selectedCard.destroy();
-    //   }
-    // }
-  }, []);
+      if (event.code === "KeyC" || event.code === "KeyR") {
+        setTool({ type: "card" });
+      } else if (event.code === "Backspace") {
+        if (selectedCard) {
+          setSelectedCard(null);
+          selectedCard.destroy();
+        }
+      }
+    },
+    [selectedCard]
+  );
 
   useEffect(() => {
     window.addEventListener("keydown", onKeyDown);

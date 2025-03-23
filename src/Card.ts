@@ -43,6 +43,11 @@ export const Card = Object.create({
 
   addChild(child: Card) {
     this.children.push(child);
+
+    child.on("destroyed", () => {
+      this.removeChild(child);
+    });
+
     this._eventEmitter.emit("childAdded", child);
   },
 
