@@ -154,14 +154,22 @@ export const Card = Object.create({
     const obj: Card = Object.create(this);
 
     obj.id = uuid();
-    obj.children = this.children.map((child) => child.copy());
+    obj.children = this.children.map((child) => {
+      const copy = child.copy();
+      copy.parent = obj;
+      return copy;
+    });
 
     this.on("childAdded", (child) => {
-      obj.addChild(child.copy());
+      const copy = child.copy();
+      copy.parent = obj;
+      obj.addChild(copy);
     });
 
     this.on("childRemoved", (child) => {
-      obj.removeChild(child);
+      const copy = child.copy();
+      copy.parent = obj;
+      obj.removeChild(copy);
     });
 
     obj._eventEmitter = new EventEmitter();

@@ -38,8 +38,8 @@ export const CardView = ({
     <div
       className={`absolute ${
         isRoot
-          ? "w-screen h-screen bg-gray-100"
-          : "bg-white border rounded-sm " +
+          ? "w-screen h-screen bg-gray-200"
+          : "bg-white border rounded-sm shadow-sm " +
             (isSelected ? " border-blue-500" : "border-gray-200")
       } ${isDragged ? "pointer-events-none" : ""}`}
       style={style}
