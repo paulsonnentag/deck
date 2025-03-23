@@ -1,6 +1,6 @@
-import { Card } from "./Card";
-import { useCard } from "./hooks";
+import { Card } from "./card";
 import { PointerEvent, useCallback, useState, useEffect } from "react";
+import { CardView } from "./CardView";
 
 type CardToolState = {
   type: "card";
@@ -13,6 +13,10 @@ type PointerToolState = {
   type: "pointer";
   state?: {
     card: Card;
+    dragPositionOffset: {
+      x: number;
+      y: number;
+    };
   };
 };
 
@@ -69,6 +73,16 @@ export const Editor = ({ rootCard }: EditorProps) => {
         } else {
           console.log("select card", card);
           setSelectedCard(card);
+
+          const dragPositionOffset = {
+            x: event.clientX - card.x,
+            y: event.clientY - card.y,
+          };
+
+          setTool({
+            type: "pointer",
+            state: { card, dragPositionOffset },
+          });
         }
       }
     },
@@ -86,6 +100,12 @@ export const Editor = ({ rootCard }: EditorProps) => {
         card.width = event.clientX - card.x;
         card.height = event.clientY - card.y;
         card.changed();
+      } else if (tool.type === "pointer" && tool.state?.card) {
+        const { card } = tool.state;
+
+        card.x = event.clientX - tool.state.dragPositionOffset.x;
+        card.y = event.clientY - tool.state.dragPositionOffset.y;
+        card.changed();
       }
     },
     [tool]
@@ -96,6 +116,9 @@ export const Editor = ({ rootCard }: EditorProps) => {
       if (event.isPrimary === false) return;
 
       if (tool.type === "card" && tool.state?.card) {
+        setTool({ type: "pointer" });
+        setSelectedCard(tool.state.card);
+      } else if (tool.type === "pointer" && tool.state?.card) {
         setTool({ type: "pointer" });
       }
     },
@@ -116,75 +139,6 @@ export const Editor = ({ rootCard }: EditorProps) => {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
       />
-    </div>
-  );
-};
-
-type CardViewProps = {
-  card: Card;
-  selectedCard: Card | null;
-  isRoot?: boolean;
-  onPointerDown: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
-  onPointerMove: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
-  onPointerUp: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
-};
-
-export const CardView = ({
-  card,
-  selectedCard,
-  isRoot,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-}: CardViewProps) => {
-  useCard(card);
-
-  const isSelected = selectedCard === card;
-
-  console.log("isSelected", isSelected);
-
-  const style = isRoot
-    ? {}
-    : {
-        transform: `translate(${card.x}px, ${card.y}px)`,
-        width: `${card.width}px`,
-        height: `${card.height}px`,
-      };
-
-  return (
-    <div
-      className={`absolute ${
-        isRoot
-          ? "w-screen h-screen bg-gray-100"
-          : "bg-white border rounded-sm " +
-            (isSelected ? " border-blue-500" : "border-gray-200")
-      }`}
-      style={style}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        onPointerDown(event, card);
-      }}
-      onPointerMove={(event) => {
-        event.stopPropagation();
-        onPointerMove(event, card);
-      }}
-      onPointerUp={(event) => {
-        event.stopPropagation();
-        onPointerUp(event, card);
-      }}
-    >
-      <div className="relative w-full h-full">
-        {card.children.map((child) => (
-          <CardView
-            key={child.id}
-            card={child}
-            selectedCard={selectedCard}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-          />
-        ))}
-      </div>
     </div>
   );
 };
