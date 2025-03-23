@@ -1,6 +1,6 @@
 import { Card } from "./card";
 import { PointerEvent, useCallback, useState, useEffect, useMemo } from "react";
-import { CardView } from "./CardView";
+import { CardView, Corner } from "./CardView";
 
 type CardToolState = {
   type: "card";
@@ -9,14 +9,15 @@ type CardToolState = {
   };
 };
 
+type DragStateMove = { type: "move"; offset: { x: number; y: number } };
+type DragStateResize = { type: "resize"; corner: Corner };
+type DragState = DragStateMove | DragStateResize;
+
 type PointerToolState = {
   type: "pointer";
   state?: {
     card: Card;
-    dragPositionOffset?: {
-      x: number;
-      y: number;
-    };
+    dragState?: DragState;
   };
 };
 
@@ -38,11 +39,7 @@ export const Editor = ({ rootCard }: EditorProps) => {
   }, [tool]);
 
   const draggedCard = useMemo(() => {
-    if (
-      tool.type === "pointer" &&
-      tool.state?.card &&
-      tool.state.dragPositionOffset
-    ) {
+    if (tool.type === "pointer" && tool.state?.card && tool.state.dragState) {
       return tool.state.card;
     }
     return null;
@@ -97,7 +94,7 @@ export const Editor = ({ rootCard }: EditorProps) => {
   }, [onKeyDown]);
 
   const onPointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>, card: Card) => {
+    (event: PointerEvent<HTMLDivElement>, card: Card, corner?: Corner) => {
       if (event.isPrimary === false) return;
 
       event.stopPropagation();
@@ -116,16 +113,25 @@ export const Editor = ({ rootCard }: EditorProps) => {
         if (card === rootCard) {
           setTool({ type: "pointer" });
         } else {
-          const globalPosition = card.getGlobalPosition();
+          let dragState: DragState;
 
-          const dragPositionOffset = {
-            x: event.clientX - globalPosition.x,
-            y: event.clientY - globalPosition.y,
-          };
+          if (corner) {
+            dragState = { type: "resize", corner };
+          } else {
+            const globalPosition = card.getGlobalPosition();
+            const dragPositionOffset = {
+              x: event.clientX - globalPosition.x,
+              y: event.clientY - globalPosition.y,
+            };
+            dragState = { type: "move", offset: dragPositionOffset };
+          }
 
           setTool({
             type: "pointer",
-            state: { card, dragPositionOffset },
+            state: {
+              card,
+              dragState,
+            },
           });
         }
       }
@@ -149,19 +155,63 @@ export const Editor = ({ rootCard }: EditorProps) => {
       } else if (
         tool.type === "pointer" &&
         tool.state?.card &&
-        tool.state.dragPositionOffset
+        tool.state.dragState
       ) {
-        const { card } = tool.state;
+        const { card, dragState } = tool.state;
 
-        if (card.parent && card.parent !== containerCard) {
-          card.parent.removeChild(card);
-          containerCard.addChild(card);
+        switch (dragState.type) {
+          case "move":
+            if (card.parent && card.parent !== containerCard) {
+              card.parent.removeChild(card);
+              containerCard.addChild(card);
+            }
+
+            card.setGlobalPosition({
+              x: event.clientX - dragState.offset.x,
+              y: event.clientY - dragState.offset.y,
+            });
+            break;
+
+          case "resize": {
+            const globalPosition = card.getGlobalPosition();
+
+            switch (dragState.corner) {
+              case "top-left":
+                card.width += globalPosition.x - event.clientX;
+                card.height += globalPosition.y - event.clientY;
+                card.setGlobalPosition({
+                  x: event.clientX,
+                  y: event.clientY,
+                });
+                break;
+
+              case "top-right":
+                card.width = event.clientX - globalPosition.x;
+                card.height += globalPosition.y - event.clientY;
+                card.setGlobalPosition({
+                  x: globalPosition.x,
+                  y: event.clientY,
+                });
+                break;
+
+              case "bottom-left":
+                card.width += globalPosition.x - event.clientX;
+                card.height = event.clientY - globalPosition.y;
+                card.setGlobalPosition({
+                  x: event.clientX,
+                  y: globalPosition.y,
+                });
+                break;
+
+              case "bottom-right":
+                card.width = event.clientX - globalPosition.x;
+                card.height = event.clientY - globalPosition.y;
+                break;
+            }
+            card.changed();
+            break;
+          }
         }
-
-        card.setGlobalPosition({
-          x: event.clientX - tool.state.dragPositionOffset.x,
-          y: event.clientY - tool.state.dragPositionOffset.y,
-        });
       }
     },
     [tool]
@@ -178,7 +228,7 @@ export const Editor = ({ rootCard }: EditorProps) => {
       } else if (
         tool.type === "pointer" &&
         tool.state?.card &&
-        tool.state.dragPositionOffset
+        tool.state.dragState
       ) {
         setTool({ type: "pointer", state: { card: tool.state.card } });
       }

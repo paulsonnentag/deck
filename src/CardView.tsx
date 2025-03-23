@@ -2,12 +2,18 @@ import { useCard } from "./hooks";
 import { PointerEvent } from "react";
 import { Card } from "./card";
 
+export type Corner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
 type CardViewProps = {
   card: Card;
   selectedCard: Card | null;
   draggedCard: Card | null;
   isRoot?: boolean;
-  onPointerDown: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
+  onPointerDown: (
+    event: PointerEvent<HTMLDivElement>,
+    card: Card,
+    corner?
+  ) => void;
   onPointerMove: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
   onPointerUp: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
 };
@@ -48,6 +54,39 @@ export const CardView = ({
       onPointerUp={(event) => onPointerUp(event, card)}
     >
       <div className="relative w-full h-full">
+        {isSelected && (
+          <>
+            <div
+              className="absolute top-0 left-0 w-[10px] h-[10px] border border-blue-500 -ml-[5px] -mt-[5px] bg-white"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                onPointerDown(event, card, "top-left");
+              }}
+            />
+            <div
+              className="absolute top-0 right-0 w-[10px] h-[10px] border border-blue-500 -mr-[5px] -mt-[5px] bg-white"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                onPointerDown(event, card, "top-right");
+              }}
+            />
+            <div
+              className="absolute bottom-0 left-0 w-[10px] h-[10px] border border-blue-500 -ml-[5px] -mb-[5px] bg-white"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                onPointerDown(event, card, "bottom-left");
+              }}
+            />
+            <div
+              className="absolute bottom-0 right-0 w-[10px] h-[10px] border border-blue-500 -mr-[5px] -mb-[5px] bg-white"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                onPointerDown(event, card, "bottom-right");
+              }}
+            />
+          </>
+        )}
+
         {card.children.map((child) => (
           <CardView
             key={child.id}
