@@ -46,7 +46,7 @@ export const Editor = ({ rootCard }: EditorProps) => {
   }, [onKeyDown]);
 
   const onPointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
+    (event: PointerEvent<HTMLDivElement>, card: Card) => {
       if (event.isPrimary === false) return;
 
       if (tool.type === "card") {
@@ -61,10 +61,19 @@ export const Editor = ({ rootCard }: EditorProps) => {
         };
 
         rootCard.addChild(newCard);
+      } else if (tool.type === "pointer") {
+        if (card === rootCard) {
+          setSelectedCard(null);
+        } else {
+          console.log("select card", card);
+          setSelectedCard(card);
+        }
       }
     },
     [tool, rootCard]
   );
+
+  console.log("selectedCard", selectedCard);
 
   const onPointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
@@ -99,6 +108,7 @@ export const Editor = ({ rootCard }: EditorProps) => {
     >
       <CardView
         card={rootCard}
+        selectedCard={selectedCard}
         isRoot={true}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -110,6 +120,7 @@ export const Editor = ({ rootCard }: EditorProps) => {
 
 type CardViewProps = {
   card: Card;
+  selectedCard: Card | null;
   isRoot?: boolean;
   onPointerDown: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
   onPointerMove: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
@@ -118,12 +129,17 @@ type CardViewProps = {
 
 export const CardView = ({
   card,
+  selectedCard,
   isRoot,
   onPointerDown,
   onPointerMove,
   onPointerUp,
 }: CardViewProps) => {
   useCard(card);
+
+  const isSelected = selectedCard === card;
+
+  console.log("isSelected", isSelected);
 
   const style = isRoot
     ? {}
@@ -138,18 +154,29 @@ export const CardView = ({
       className={`absolute ${
         isRoot
           ? "w-screen h-screen bg-gray-100"
-          : "bg-white border border-gray-200"
+          : "bg-white border rounded-sm " +
+            (isSelected ? " border-blue-500" : "border-gray-200")
       }`}
       style={style}
-      onPointerDown={(event) => onPointerDown(event, card)}
-      onPointerMove={(event) => onPointerMove(event, card)}
-      onPointerUp={(event) => onPointerUp(event, card)}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onPointerDown(event, card);
+      }}
+      onPointerMove={(event) => {
+        event.stopPropagation();
+        onPointerMove(event, card);
+      }}
+      onPointerUp={(event) => {
+        event.stopPropagation();
+        onPointerUp(event, card);
+      }}
     >
       <div className="relative w-full h-full">
         {card.children.map((child) => (
           <CardView
             key={child.id}
             card={child}
+            selectedCard={selectedCard}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
