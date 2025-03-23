@@ -29,9 +29,6 @@ export type Card = {
   destroy: () => void;
   copy: () => Card;
   _eventEmitter: EventEmitter<CardEvent>;
-  _onPrototypeChildAdded: (child: Card) => void;
-  _onPrototypeChildRemoved: (child: Card) => void;
-  _onPrototypeChanged: () => void;
 };
 
 export const Card = Object.create({
@@ -112,28 +109,6 @@ export const Card = Object.create({
   destroy() {
     this._eventEmitter.emit("destroyed");
     this._eventEmitter.removeAllListeners();
-
-    const prototype = Object.getPrototypeOf(this);
-    prototype.off("childAdded", this._onPrototypeChildAdded);
-    prototype.off("childRemoved", this._onPrototypeChildRemoved);
-    prototype.off("changed", this._onPrototypeChanged);
-  },
-
-  _onPrototypeChildAdded(child: Card) {
-    const copy = child.copy();
-
-    this.children.push(copy);
-    this._eventEmitter.emit("childAdded", copy);
-  },
-
-  _onPrototypeChildRemoved(child: Card) {
-    this.children = this.children.filter(
-      (c) => Object.getPrototypeOf(c).id == child.id
-    );
-  },
-
-  _onPrototypeChanged() {
-    this._eventEmitter.emit("changed");
   },
 
   isEqualTo(other: Card) {
@@ -167,16 +142,10 @@ export const Card = Object.create({
     });
 
     this.on("childRemoved", (child) => {
-      const copy = child.copy();
-      copy.parent = obj;
-      obj.removeChild(copy);
+      obj.removeChild(child);
     });
 
     obj._eventEmitter = new EventEmitter();
-
-    obj._onPrototypeChanged = obj._onPrototypeChanged.bind(obj);
-    obj._onPrototypeChildAdded = obj._onPrototypeChildAdded.bind(obj);
-    obj._onPrototypeChildRemoved = obj._onPrototypeChildRemoved.bind(obj);
 
     return obj;
   },
