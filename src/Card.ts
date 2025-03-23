@@ -80,9 +80,7 @@ export const Card = Object.create({
   addChild(child: Card) {
     this.children.push(child);
 
-    if (child.parent) {
-      child.parent.removeChild(child);
-    }
+    console.log("add child", child, this);
 
     child.parent = this;
 

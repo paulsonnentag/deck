@@ -28,6 +28,7 @@ type EditorProps = {
 
 export const Editor = ({ rootCard }: EditorProps) => {
   const [tool, setTool] = useState<ToolState>({ type: "pointer" });
+  const [clipboard, setClipboard] = useState<Card | null>(null);
 
   const selectedCard = useMemo(() => {
     if (tool.type === "pointer" && tool.state?.card) {
@@ -49,16 +50,43 @@ export const Editor = ({ rootCard }: EditorProps) => {
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (event.code === "KeyC" || event.code === "KeyR") {
+      // copy card
+      if (event.code === "KeyC" && (event.ctrlKey || event.metaKey)) {
+        if (selectedCard) {
+          setClipboard(selectedCard);
+        }
+
+        // cut card
+      } else if (event.code === "KeyX" && (event.ctrlKey || event.metaKey)) {
+        if (selectedCard) {
+          setClipboard(selectedCard);
+          selectedCard.destroy();
+        }
+
+        // paste card
+      } else if (event.code === "KeyV" && (event.ctrlKey || event.metaKey)) {
+        if (clipboard) {
+          const newCard = clipboard.copy();
+          clipboard.parent!.addChild(newCard);
+          setTool({ type: "pointer", state: { card: newCard } });
+        }
+
+        // switch to card tool
+      } else if (event.code === "KeyC" || event.code === "KeyR") {
         setTool({ type: "card" });
+
+        // delete card
       } else if (event.code === "Backspace") {
         if (selectedCard) {
           setTool({ type: "pointer" });
           selectedCard.destroy();
         }
+        // cancel selection
+      } else if (event.code === "Escape") {
+        setTool({ type: "pointer" });
       }
     },
-    [selectedCard]
+    [selectedCard, clipboard]
   );
 
   useEffect(() => {
