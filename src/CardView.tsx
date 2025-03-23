@@ -5,6 +5,7 @@ import { Card } from "./card";
 type CardViewProps = {
   card: Card;
   selectedCard: Card | null;
+  draggedCard: Card | null;
   isRoot?: boolean;
   onPointerDown: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
   onPointerMove: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
@@ -14,6 +15,7 @@ type CardViewProps = {
 export const CardView = ({
   card,
   selectedCard,
+  draggedCard,
   isRoot,
   onPointerDown,
   onPointerMove,
@@ -22,8 +24,7 @@ export const CardView = ({
   useCard(card);
 
   const isSelected = selectedCard === card;
-
-  console.log("isSelected", isSelected);
+  const isDragged = draggedCard === card;
 
   const style = isRoot
     ? {}
@@ -40,26 +41,18 @@ export const CardView = ({
           ? "w-screen h-screen bg-gray-100"
           : "bg-white border rounded-sm " +
             (isSelected ? " border-blue-500" : "border-gray-200")
-      }`}
+      } ${isDragged ? "pointer-events-none" : ""}`}
       style={style}
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        onPointerDown(event, card);
-      }}
-      onPointerMove={(event) => {
-        event.stopPropagation();
-        onPointerMove(event, card);
-      }}
-      onPointerUp={(event) => {
-        event.stopPropagation();
-        onPointerUp(event, card);
-      }}
+      onPointerDown={(event) => onPointerDown(event, card)}
+      onPointerMove={(event) => onPointerMove(event, card)}
+      onPointerUp={(event) => onPointerUp(event, card)}
     >
       <div className="relative w-full h-full">
         {card.children.map((child) => (
           <CardView
             key={child.id}
             card={child}
+            draggedCard={draggedCard}
             selectedCard={selectedCard}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}

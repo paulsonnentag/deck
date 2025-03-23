@@ -1,5 +1,5 @@
 import { Card } from "./card";
-import { PointerEvent, useCallback, useState, useEffect } from "react";
+import { PointerEvent, useCallback, useState, useEffect, useMemo } from "react";
 import { CardView } from "./CardView";
 
 type CardToolState = {
@@ -13,7 +13,7 @@ type PointerToolState = {
   type: "pointer";
   state?: {
     card: Card;
-    dragPositionOffset: {
+    dragPositionOffset?: {
       x: number;
       y: number;
     };
@@ -28,17 +28,32 @@ type EditorProps = {
 
 export const Editor = ({ rootCard }: EditorProps) => {
   const [tool, setTool] = useState<ToolState>({ type: "pointer" });
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+
+  const selectedCard = useMemo(() => {
+    if (tool.type === "pointer" && tool.state?.card) {
+      return tool.state.card;
+    }
+    return null;
+  }, [tool]);
+
+  const draggedCard = useMemo(() => {
+    if (
+      tool.type === "pointer" &&
+      tool.state?.card &&
+      tool.state.dragPositionOffset
+    ) {
+      return tool.state.card;
+    }
+    return null;
+  }, [tool]);
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      console.log("key down", event.code);
-
       if (event.code === "KeyC" || event.code === "KeyR") {
         setTool({ type: "card" });
       } else if (event.code === "Backspace") {
         if (selectedCard) {
-          setSelectedCard(null);
+          setTool({ type: "pointer" });
           selectedCard.destroy();
         }
       }
@@ -55,28 +70,27 @@ export const Editor = ({ rootCard }: EditorProps) => {
     (event: PointerEvent<HTMLDivElement>, card: Card) => {
       if (event.isPrimary === false) return;
 
+      event.stopPropagation();
+
       if (tool.type === "card") {
         const newCard = Card.copy();
-        newCard.x = event.clientX;
-        newCard.y = event.clientY;
+        card.addChild(newCard);
+        newCard.setGlobalPosition({ x: event.clientX, y: event.clientY });
         newCard.width = 0;
         newCard.height = 0;
 
         tool.state = {
           card: newCard,
         };
-
-        rootCard.addChild(newCard);
       } else if (tool.type === "pointer") {
         if (card === rootCard) {
-          setSelectedCard(null);
+          setTool({ type: "pointer" });
         } else {
-          console.log("select card", card);
-          setSelectedCard(card);
+          const globalPosition = card.getGlobalPosition();
 
           const dragPositionOffset = {
-            x: event.clientX - card.x,
-            y: event.clientY - card.y,
+            x: event.clientX - globalPosition.x,
+            y: event.clientY - globalPosition.y,
           };
 
           setTool({
@@ -89,23 +103,35 @@ export const Editor = ({ rootCard }: EditorProps) => {
     [tool, rootCard]
   );
 
-  console.log("selectedCard", selectedCard);
-
   const onPointerMove = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
+    (event: PointerEvent<HTMLDivElement>, containerCard: Card) => {
       if (event.isPrimary === false) return;
+
+      event.stopPropagation();
 
       if (tool.type === "card" && tool.state?.card) {
         const { card } = tool.state;
-        card.width = event.clientX - card.x;
-        card.height = event.clientY - card.y;
+        const globalPosition = card.getGlobalPosition();
+
+        card.width = event.clientX - globalPosition.x;
+        card.height = event.clientY - globalPosition.y;
         card.changed();
-      } else if (tool.type === "pointer" && tool.state?.card) {
+      } else if (
+        tool.type === "pointer" &&
+        tool.state?.card &&
+        tool.state.dragPositionOffset
+      ) {
         const { card } = tool.state;
 
-        card.x = event.clientX - tool.state.dragPositionOffset.x;
-        card.y = event.clientY - tool.state.dragPositionOffset.y;
-        card.changed();
+        if (card.parent && card.parent !== containerCard) {
+          card.parent.removeChild(card);
+          containerCard.addChild(card);
+        }
+
+        card.setGlobalPosition({
+          x: event.clientX - tool.state.dragPositionOffset.x,
+          y: event.clientY - tool.state.dragPositionOffset.y,
+        });
       }
     },
     [tool]
@@ -115,11 +141,16 @@ export const Editor = ({ rootCard }: EditorProps) => {
     (event: PointerEvent<HTMLDivElement>) => {
       if (event.isPrimary === false) return;
 
+      event.stopPropagation();
+
       if (tool.type === "card" && tool.state?.card) {
-        setTool({ type: "pointer" });
-        setSelectedCard(tool.state.card);
-      } else if (tool.type === "pointer" && tool.state?.card) {
-        setTool({ type: "pointer" });
+        setTool({ type: "pointer", state: { card: tool.state.card } });
+      } else if (
+        tool.type === "pointer" &&
+        tool.state?.card &&
+        tool.state.dragPositionOffset
+      ) {
+        setTool({ type: "pointer", state: { card: tool.state.card } });
       }
     },
     [tool]
@@ -134,6 +165,7 @@ export const Editor = ({ rootCard }: EditorProps) => {
       <CardView
         card={rootCard}
         selectedCard={selectedCard}
+        draggedCard={draggedCard}
         isRoot={true}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

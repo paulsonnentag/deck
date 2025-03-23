@@ -4,6 +4,7 @@ import { Card } from "./card";
 import "./index.css";
 
 const rootCard = Card.copy();
+rootCard.name = "root";
 
 const root = createRoot(document.getElementById("root")!);
 root.render(<Editor rootCard={rootCard} />);
