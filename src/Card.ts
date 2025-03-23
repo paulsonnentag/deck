@@ -1,92 +1,107 @@
+import EventEmitter from "eventemitter3";
+import { useState } from "react";
 import { v4 as uuid } from "uuid";
-import { EventEmitter } from "eventemitter3";
 
-type CardEvents = {
-  pointerdown: (event: PointerEvent, card: Card) => void;
+export type CardEvent = {
+  childAdded: (child: Card) => void;
+  childRemoved: (child: Card) => void;
+  changed: () => void;
+  destroyed: () => void;
 };
 
-type CardConfig = {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-};
-
-export class Card extends EventEmitter<CardEvents> {
-  id: string = uuid();
-
+export type Card = {
+  id: string;
   x: number;
   y: number;
   width: number;
   height: number;
+  parent: Card | null;
+  children: Card[];
+  addChild: (child: Card) => void;
+  removeChild: (child: Card) => void;
+  changed: () => void;
+  on: (event: string, handler: (...args: any[]) => void) => void;
+  off: (event: string, handler: (...args: any[]) => void) => void;
+  destroy: () => void;
+  copy: () => Card;
+  _eventEmitter: EventEmitter<CardEvent>;
+  _onPrototypeChildAdded: (child: Card) => void;
+  _onPrototypeChildRemoved: (child: Card) => void;
+  _onPrototypeChanged: () => void;
+};
 
-  isSelected: boolean = false;
-  cardElement: HTMLElement;
-  childrenContainer: HTMLElement;
+export const Card = Object.create({
+  id: uuid(),
+  x: 0,
+  y: 0,
+  width: 100,
+  height: 100,
+  parent: null,
+  children: [],
 
-  children: Card[] = [];
-
-  constructor(config: CardConfig) {
-    super();
-    this.x = config.x ?? 0;
-    this.y = config.y ?? 0;
-    this.width = config.width ?? 100;
-    this.height = config.height ?? 100;
-    this.onPointerDown = this.onPointerDown.bind(this);
-    this.cardElement = document.createElement("div");
-    this.childrenContainer = document.createElement("div");
-    this.cardElement.appendChild(this.childrenContainer);
-
-    this.cardElement.addEventListener("pointerdown", this.onPointerDown);
-    this.reconcile();
-  }
-
-  getOffset() {
-    // Get the position of this element relative to the screen
-    const rect = this.cardElement.getBoundingClientRect();
-    return {
-      x: rect.left,
-      y: rect.top,
-    };
-  }
-
-  onPointerDown(event: PointerEvent) {
-    event.stopPropagation();
-    this.emit("pointerdown", event, this);
-  }
-
-  mount(container: HTMLElement) {
-    if (this.cardElement.parentElement) {
-      this.cardElement.parentElement.removeChild(this.cardElement);
-    }
-
-    container.appendChild(this.cardElement);
-
-    Object.values(this.children).forEach((child) => {
-      child.mount(this.cardElement!);
-    });
-  }
-
-  destroy() {
-    this.children.forEach((child) => {
-      child.destroy();
-    });
-
-    this.cardElement.removeEventListener("pointerdown", this.onPointerDown);
-    this.cardElement.remove();
-  }
-
-  reconcile() {
-    this.cardElement.className = `absolute border bg-white ${
-      this.isSelected ? "border-blue-500 z-10" : "border-gray-300"
-    }`;
-    this.cardElement.style.width = `${this.width}px`;
-    this.cardElement.style.height = `${this.height}px`;
-    this.cardElement.style.transform = `translate(${this.x}px, ${this.y}px)`;
-  }
+  _eventEmitter: new EventEmitter<CardEvent>(),
 
   addChild(child: Card) {
     this.children.push(child);
-    child.mount(this.childrenContainer);
-  }
-}
+    this._eventEmitter.emit("childAdded", child);
+  },
+
+  removeChild(child: Card) {
+    this.children = this.children.filter((c) => c.id != child.id);
+    this._eventEmitter.emit("childRemoved", child);
+  },
+
+  changed() {
+    this._eventEmitter.emit("changed");
+  },
+
+  on<K extends keyof CardEvent>(event: K, handler: CardEvent[K]) {
+    this._eventEmitter.on(event, handler as any);
+  },
+
+  off<K extends keyof CardEvent>(event: K, handler: CardEvent[K]) {
+    this._eventEmitter.off(event, handler as any);
+  },
+
+  destroy() {
+    this._eventEmitter.emit("destroyed");
+    this._eventEmitter.removeAllListeners();
+
+    const prototype = Object.getPrototypeOf(this);
+    prototype.off("childAdded", this._onPrototypeChildAdded);
+    prototype.off("childRemoved", this._onPrototypeChildRemoved);
+    prototype.off("changed", this._onPrototypeChanged);
+  },
+
+  _onPrototypeChildAdded(child: Card) {
+    const copy = child.copy();
+
+    this.children.push(copy);
+    this._eventEmitter.emit("childAdded", copy);
+  },
+
+  _onPrototypeChildRemoved(child: Card) {
+    this.children = this.children.filter(
+      (c) => Object.getPrototypeOf(c).id == child.id
+    );
+  },
+
+  _onPrototypeChanged() {
+    this._eventEmitter.emit("changed");
+  },
+
+  copy() {
+    const obj: Card = Object.create(this);
+
+    obj.id = uuid();
+    obj.children = this.children.map((child) => child.copy());
+
+    obj._eventEmitter = new EventEmitter();
+
+    obj._onPrototypeChanged = obj._onPrototypeChanged.bind(obj);
+    obj._onPrototypeChildAdded = obj._onPrototypeChildAdded.bind(obj);
+    obj._onPrototypeChildRemoved = obj._onPrototypeChildRemoved.bind(obj);
+
+    return obj;
+  },
+} as Card);

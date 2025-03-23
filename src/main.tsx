@@ -1,5 +1,5 @@
 import "./index.css";
-import { Card } from "./Card";
+import { Card } from "./card";
 
 const root = document.getElementById("root")!;
 root.className = "bg-gray-100 w-screen h-screen";
@@ -22,8 +22,6 @@ type PointerToolState = {
   };
 };
 
-type ToolState = CardToolState | PointerToolState;
-
 let toolState: ToolState = { type: "pointer" };
 
 let selectedCard: Card | null = null;
@@ -41,17 +39,7 @@ const setSelectedCard = (card: Card | null) => {
   }
 };
 
-const setTool = (type: ToolType) => {
-  document.body.classList.remove("cursor-crosshair");
-
-  if (type === "pointer") {
-    toolState = { type: "pointer" };
-  } else if (type === "card" && toolState.type !== "card") {
-    setSelectedCard(null);
-    toolState = { type: "card" };
-    document.body.classList.add("cursor-crosshair");
-  }
-};
+const setTool = (type: ToolType) => {};
 
 const onKeyDown = (event: KeyboardEvent) => {
   console.log(event.code);
@@ -117,8 +105,15 @@ const onPointerMove = (event: PointerEvent) => {
   if (toolState.type === "pointer" && toolState.state) {
     const { card, offset } = toolState.state;
 
-    card.x = event.clientX - offset.x;
-    card.y = event.clientY - offset.y;
+    if (card.parent) {
+      const parentOffset = card.parent.getOffset();
+      card.x = event.clientX - offset.x - parentOffset.x;
+      card.y = event.clientY - offset.y - parentOffset.y;
+    } else {
+      card.x = event.clientX - offset.x;
+      card.y = event.clientY - offset.y;
+    }
+
     card.reconcile();
   } else if (toolState.type === "card" && toolState.state) {
     const { card, offset } = toolState.state;
@@ -148,25 +143,3 @@ window.addEventListener("keydown", onKeyDown);
 root.addEventListener("pointerdown", onPointerDown);
 root.addEventListener("pointermove", onPointerMove);
 root.addEventListener("pointerup", onPointerUp);
-
-const card1 = new Card({
-  x: 100,
-  y: 100,
-  width: 100,
-  height: 100,
-});
-
-card1.on("pointerdown", onPointerDown);
-
-const card2 = new Card({
-  x: 10,
-  y: 10,
-  width: 10,
-  height: 10,
-});
-
-card2.on("pointerdown", onPointerDown);
-
-card1.mount(root);
-
-card1.addChild(card2);
