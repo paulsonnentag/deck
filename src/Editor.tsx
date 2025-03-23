@@ -67,6 +67,8 @@ export const Editor = ({ rootCard }: EditorProps) => {
       } else if (event.code === "KeyV" && (event.ctrlKey || event.metaKey)) {
         if (clipboard) {
           const newCard = clipboard.copy();
+          newCard.setGlobalPosition({ x: 0, y: 0 });
+
           clipboard.parent!.addChild(newCard);
           setTool({ type: "pointer", state: { card: newCard } });
         }

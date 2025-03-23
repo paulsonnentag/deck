@@ -22,6 +22,7 @@ export type Card = {
   setGlobalPosition: ({ x, y }: { x: number; y: number }) => void;
   addChild: (child: Card) => void;
   removeChild: (child: Card) => void;
+  isEqualTo: (other: Card) => boolean;
   changed: () => void;
   on: (event: string, handler: (...args: any[]) => void) => void;
   off: (event: string, handler: (...args: any[]) => void) => void;
@@ -92,7 +93,7 @@ export const Card = Object.create({
   },
 
   removeChild(child: Card) {
-    this.children = this.children.filter((c) => c.id != child.id);
+    this.children = this.children.filter((c) => !c.isEqualTo(child));
     this._eventEmitter.emit("childRemoved", child);
   },
 
@@ -135,11 +136,33 @@ export const Card = Object.create({
     this._eventEmitter.emit("changed");
   },
 
+  isEqualTo(other: Card) {
+    if (this.id === other.id) {
+      return true;
+    }
+
+    const prototype = Object.getPrototypeOf(this);
+
+    if (prototype.isEqualTo) {
+      return prototype.isEqualTo(other);
+    }
+
+    return false;
+  },
+
   copy() {
     const obj: Card = Object.create(this);
 
     obj.id = uuid();
     obj.children = this.children.map((child) => child.copy());
+
+    this.on("childAdded", (child) => {
+      obj.addChild(child.copy());
+    });
+
+    this.on("childRemoved", (child) => {
+      obj.removeChild(child);
+    });
 
     obj._eventEmitter = new EventEmitter();
 
