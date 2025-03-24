@@ -1,5 +1,4 @@
 import EventEmitter from "eventemitter3";
-import { useState } from "react";
 import { v4 as uuid } from "uuid";
 
 export type CardEvent = {
@@ -22,11 +21,12 @@ export type Card = {
   setGlobalPosition: ({ x, y }: { x: number; y: number }) => void;
   addChild: (child: Card) => void;
   removeChild: (child: Card) => void;
-  isEqualTo: (other: Card) => boolean;
+  isShadowOf: (other: Card) => boolean;
   changed: () => void;
   on: (event: string, handler: (...args: any[]) => void) => void;
   off: (event: string, handler: (...args: any[]) => void) => void;
   destroy: () => void;
+  shadow: () => Card;
   copy: () => Card;
   _eventEmitter: EventEmitter<CardEvent>;
 };
@@ -85,7 +85,7 @@ export const Card = Object.create({
   },
 
   removeChild(child: Card) {
-    this.children = this.children.filter((c) => !c.isEqualTo(child));
+    this.children = this.children.filter((c) => !c.isShadowOf(child));
     this._eventEmitter.emit("childRemoved", child);
   },
 
@@ -106,34 +106,38 @@ export const Card = Object.create({
     this._eventEmitter.removeAllListeners();
   },
 
-  isEqualTo(other: Card) {
+  isShadowOf(other: Card) {
     if (this.id === other.id) {
       return true;
     }
 
     const prototype = Object.getPrototypeOf(this);
 
-    if (prototype.isEqualTo) {
-      return prototype.isEqualTo(other);
+    if (prototype.isShadowOf) {
+      return prototype.isShadowOf(other);
     }
 
     return false;
   },
 
   copy() {
+    return this.shadow();
+  },
+
+  shadow() {
     const obj: Card = Object.create(this);
 
     obj.id = uuid();
     obj.children = this.children.map((child) => {
-      const copy = child.copy();
+      const copy = child.shadow();
       copy.parent = obj;
       return copy;
     });
 
     this.on("childAdded", (child) => {
-      const copy = child.copy();
-      copy.parent = obj;
-      obj.addChild(copy);
+      const shadow = child.shadow();
+      shadow.parent = obj;
+      obj.addChild(shadow);
     });
 
     this.on("childRemoved", (child) => {

@@ -12,7 +12,7 @@ type CardViewProps = {
   onPointerDown: (
     event: PointerEvent<HTMLDivElement>,
     card: Card,
-    corner?
+    corner?: Corner
   ) => void;
   onPointerMove: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
   onPointerUp: (event: PointerEvent<HTMLDivElement>, card: Card) => void;
