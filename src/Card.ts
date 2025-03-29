@@ -16,6 +16,7 @@ export type Card = {
   height: number;
   parent: Card | null;
   children: Card[];
+  copyOf: Card | null;
   getOffset: () => { x: number; y: number };
   getGlobalPosition: () => { x: number; y: number };
   setGlobalPosition: ({ x, y }: { x: number; y: number }) => void;
@@ -39,6 +40,7 @@ export const Card = Object.create({
   height: 100,
   parent: null,
   children: [],
+  copyOf: null,
 
   _eventEmitter: new EventEmitter<CardEvent>(),
 
@@ -120,12 +122,41 @@ export const Card = Object.create({
     return false;
   },
 
+  isSimilarTo(other: Card) {
+    return (
+      this.width === other.width &&
+      this.height === other.height &&
+      other.children.length == this.children.length &&
+      this.children.every((child) =>
+        other.children.some((otherChild) => child.isShadowOf(otherChild))
+      )
+    );
+  },
+
   copy() {
-    return this.shadow();
+    const obj: Card = Object.create(Card);
+
+    obj._eventEmitter = new EventEmitter();
+
+    obj.copyOf = this;
+    obj.id = uuid();
+    obj.children = this.children.map((child) => {
+      const copy = child.copy();
+      copy.parent = obj;
+      return copy;
+    });
+
+    obj.width = this.width;
+    obj.height = this.height;
+    obj.x = this.x;
+    obj.y = this.y;
+    return obj;
   },
 
   shadow() {
     const obj: Card = Object.create(this);
+
+    obj._eventEmitter = new EventEmitter();
 
     obj.id = uuid();
     obj.children = this.children.map((child) => {

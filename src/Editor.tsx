@@ -13,10 +13,15 @@ type DragStateMove = { type: "move"; offset: { x: number; y: number } };
 type DragStateResize = { type: "resize"; corner: Corner };
 type DragState = DragStateMove | DragStateResize;
 
+type SingleCardSelectionState = { type: "card"; card: Card };
+type CardGroupSelectionState = { type: "group"; cards: Card[] };
+
+type SelectionState = SingleCardSelectionState | CardGroupSelectionState;
+
 type PointerToolState = {
   type: "pointer";
   state?: {
-    card: Card;
+    selection: SelectionState;
     dragState?: DragState;
   };
 };
@@ -32,15 +37,19 @@ export const Editor = ({ rootCard }: EditorProps) => {
   const [clipboard, setClipboard] = useState<Card | null>(null);
 
   const selectedCard = useMemo(() => {
-    if (tool.type === "pointer" && tool.state?.card) {
-      return tool.state.card;
+    if (tool.type === "pointer" && tool.state?.selection.type === "card") {
+      return tool.state.selection.card;
     }
     return null;
   }, [tool]);
 
   const draggedCard = useMemo(() => {
-    if (tool.type === "pointer" && tool.state?.card && tool.state.dragState) {
-      return tool.state.card;
+    if (
+      tool.type === "pointer" &&
+      tool.state?.dragState &&
+      tool.state.selection.type === "card"
+    ) {
+      return tool.state.selection.card;
     }
     return null;
   }, [tool]);
@@ -63,11 +72,14 @@ export const Editor = ({ rootCard }: EditorProps) => {
         // paste card
       } else if (event.code === "KeyV" && (event.ctrlKey || event.metaKey)) {
         if (clipboard) {
-          const newCard = clipboard.shadow();
+          const newCard = clipboard.copy();
           newCard.setGlobalPosition({ x: 0, y: 0 });
 
           clipboard.parent!.addChild(newCard);
-          setTool({ type: "pointer", state: { card: newCard } });
+          setTool({
+            type: "pointer",
+            state: { selection: { type: "card", card: newCard } },
+          });
         }
 
         // switch to card tool
@@ -129,7 +141,7 @@ export const Editor = ({ rootCard }: EditorProps) => {
           setTool({
             type: "pointer",
             state: {
-              card,
+              selection: { type: "card", card },
               dragState,
             },
           });
@@ -154,10 +166,11 @@ export const Editor = ({ rootCard }: EditorProps) => {
         card.changed();
       } else if (
         tool.type === "pointer" &&
-        tool.state?.card &&
+        tool.state?.selection.type === "card" &&
         tool.state.dragState
       ) {
-        const { card, dragState } = tool.state;
+        const { selection, dragState } = tool.state;
+        const { card } = selection;
 
         switch (dragState.type) {
           case "move":
@@ -224,13 +237,21 @@ export const Editor = ({ rootCard }: EditorProps) => {
       event.stopPropagation();
 
       if (tool.type === "card" && tool.state?.card) {
-        setTool({ type: "pointer", state: { card: tool.state.card } });
+        setTool({
+          type: "pointer",
+          state: { selection: { type: "card", card: tool.state.card } },
+        });
       } else if (
         tool.type === "pointer" &&
-        tool.state?.card &&
+        tool.state?.selection.type === "card" &&
         tool.state.dragState
       ) {
-        setTool({ type: "pointer", state: { card: tool.state.card } });
+        setTool({
+          type: "pointer",
+          state: {
+            selection: { type: "card", card: tool.state.selection.card },
+          },
+        });
       }
     },
     [tool]

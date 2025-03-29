@@ -2,6 +2,7 @@
 
 - [ ] prevent dragging things into each other
 - [ ] create shared prototype on copy
-- [x] allow to resize rectangles
+- [ ] scrolling
 - [ ] add text nodes
-- [ ] allow to change colors
+- [x] allow to resize rectangles
+- [ ] allow to style things
