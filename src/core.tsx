@@ -1,5 +1,5 @@
 import { DocumentId } from "@automerge/automerge-repo";
-import { useDocument } from "@automerge/automerge-repo-react-hooks";
+import { useDocument, useHandle } from "@automerge/automerge-repo-react-hooks";
 import { useCallback, useMemo } from "react";
 import { v4 as uuid } from "uuid";
 
@@ -13,6 +13,14 @@ export type ObjectDoc = {
   objects: Record<string, SerializedObj>;
 };
 
+type ViewProps = {
+  draggedObj?: any;
+  selectedObj?: any;
+  onPointerDown: (e: React.PointerEvent<HTMLDivElement>, obj: any) => void;
+  onPointerMove: (e: React.PointerEvent<HTMLDivElement>, obj: any) => void;
+  onPointerUp: (e: React.PointerEvent<HTMLDivElement>, obj: any) => void;
+};
+
 const getBaseObjects = (
   updateObjectDoc: (update: (doc: ObjectDoc) => void) => void
 ) => {
@@ -21,7 +29,7 @@ const getBaseObjects = (
     props: {} as any,
     parent: null as any,
 
-    extend({
+    _extend({
       props = {},
       id = uuid(),
       ...rest
@@ -33,15 +41,58 @@ const getBaseObjects = (
       const newObj = Object.create(this);
       newObj.id = id;
       newObj.props = Object.create(this.props);
-      newObj.prototype = this;
       Object.assign(newObj.props, props);
       Object.assign(newObj, rest);
       return newObj;
     },
 
+    extend(args: any) {
+      const newObj = this._extend(args);
+
+      console.log("new thing", { newObj });
+
+      updateObjectDoc(({ objects }) => {
+        objects[newObj.id] = newObj.serialize();
+      });
+
+      return newObj;
+    },
+
+    copy() {
+      const newObj = Object.create(Object.getPrototypeOf(this));
+      newObj.id = uuid();
+      newObj.props = Object.assign({}, this.props);
+
+      updateObjectDoc(({ objects }) => {
+        const serialized = this.serialize();
+        objects[newObj.id] = serialized;
+      });
+
+      return newObj;
+    },
+
+    update(fn: (props: Record<string, any>) => Record<string, any>) {
+      updateObjectDoc(({ objects }) => {
+        const changedProps: Record<string, any> = fn(objects[this.id].props);
+
+        console.log("changedProps", { changedProps });
+
+        const obj = objects[this.id];
+        for (const [key, value] of Object.entries(changedProps)) {
+          obj.props[key] = value;
+        }
+      });
+    },
+
     set(key: string, value: any) {
       updateObjectDoc(({ objects }) => {
         objects[this.id].props[key] = value;
+      });
+    },
+
+    destroy() {
+      updateObjectDoc(({ objects }) => {
+        delete objects[this.id];
       });
     },
 
@@ -58,22 +109,10 @@ const getBaseObjects = (
         props: this.props,
       };
     },
-
-    prototypeOf(obj: any) {
-      if (!obj.prototype) {
-        return false;
-      }
-
-      if (obj.prototype === this) {
-        return true;
-      }
-
-      return obj.prototype.prototypeOf(this);
-    },
   };
 
-  const Card = Obj.extend({
-    id: "Card",
+  const card = Obj._extend({
+    id: "card",
     props: {
       x: 0,
       y: 0,
@@ -81,12 +120,22 @@ const getBaseObjects = (
       height: 100,
       color: "#fff",
     },
-    view() {
+    view({
+      draggedObj,
+      selectedObj,
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+    }: ViewProps) {
       const { x, y, width, height, color } = this.props;
+      const isBeingDragged = draggedObj === this;
+      const isSelected = selectedObj?.id === this.id;
 
       return (
         <div
-          className="shadow-md border border-gray-100 rounded-md"
+          className={`shadow-md border rounded-md ${
+            isBeingDragged ? "pointer-events-none" : ""
+          } ${isSelected ? "border-blue-500 z-1" : "border-gray-100 "}`}
           style={{
             position: "absolute",
             width: `${width}px`,
@@ -94,13 +143,16 @@ const getBaseObjects = (
             transform: `translate(${x}px, ${y}px)`,
             backgroundColor: color,
           }}
+          onPointerDown={(e) => onPointerDown(e, this)}
+          onPointerMove={(e) => onPointerMove(e, this)}
+          onPointerUp={(e) => onPointerUp(e, this)}
         ></div>
       );
     },
   });
 
-  const Field = Obj.extend({
-    id: "Field",
+  const field = Obj._extend({
+    id: "field",
     props: {
       x: 0,
       y: 0,
@@ -127,8 +179,8 @@ const getBaseObjects = (
   });
 
   return {
-    Card,
-    Field,
+    card,
+    field,
   };
 };
 
@@ -145,7 +197,8 @@ export const getObjects = (
 
     const { prototypeId, props } = objectDoc.objects[id];
     const prototype: any = loadObject(prototypeId);
-    const obj = prototype.extend({ props, id });
+    const obj = prototype._extend({ props, id });
+
     objects[id] = obj;
     return obj;
   };
@@ -157,25 +210,14 @@ export const getObjects = (
   return objects;
 };
 
-export const useObjects = (
-  documentId: DocumentId
-): { objects: Record<string, any>; createObject: (object: any) => void } => {
+export const useObjects = (documentId: DocumentId): Record<string, any> => {
   const [objectDoc, updateObjectDoc] = useDocument<ObjectDoc>(documentId);
-
-  const createObject = useCallback(
-    (object: any) => {
-      updateObjectDoc(({ objects }) => {
-        objects[object.id] = object.serialize();
-      });
-    },
-    [updateObjectDoc]
-  );
 
   return useMemo(() => {
     if (!objectDoc) {
-      return { objects: [], createObject };
+      return {};
     }
 
-    return { objects: getObjects(objectDoc, updateObjectDoc), createObject };
-  }, [objectDoc, updateObjectDoc, createObject]);
+    return getObjects(objectDoc, updateObjectDoc);
+  }, [objectDoc, updateObjectDoc]);
 };
