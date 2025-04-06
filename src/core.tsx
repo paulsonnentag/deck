@@ -218,6 +218,20 @@ export const useObjects = (documentId: DocumentId): Record<string, any> => {
       return {};
     }
 
-    return getObjects(objectDoc, updateObjectDoc);
+    const objects = getObjects(objectDoc, updateObjectDoc);
+
+    // dummy rule to test dynamic changes
+    for (const obj of Object.values(objects)) {
+      console.log("obj", obj.props.y);
+
+      if (obj.props.y > 500) {
+        obj.props.color = "oklch(96.7% 0.003 264.542)";
+        console.log("obj", obj);
+      }
+    }
+
+    return objects;
+
+    return objects;
   }, [objectDoc, updateObjectDoc]);
 };
