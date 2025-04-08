@@ -34,7 +34,10 @@ export class Field extends Node {
 
   update(callback: (props: FieldProps) => void) {
     this.docHandle.change((doc) => {
-      callback(doc.nodes[this.id] as FieldProps);
+      const node = doc.nodes[this.id];
+      if (node) {
+        callback(node as FieldProps);
+      }
     });
   }
 
@@ -76,27 +79,56 @@ export class Field extends Node {
     return field;
   }
 
-  view(props: NodeViewProps) {
+  view({
+    draggedNode,
+    selectedNode,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onBlur,
+    onFocus,
+  }: NodeViewProps) {
+    const isBeingDragged = draggedNode?.id === this.id;
+    const isSelected = selectedNode?.id === this.id;
     return (
       <div
+        className={`bg-white border pl-1 
+          ${isSelected ? "border-blue-500" : "border-gray-200"}
+          ${isBeingDragged ? "pointer-events-none" : ""}
+        `}
         style={{
           position: "absolute",
           transform: `translate(${this.x}px, ${this.y}px)`,
         }}
-        onPointerDown={(e) => props.onPointerDown(e, this)}
-        onPointerMove={(e) => props.onPointerMove(e, this)}
-        onPointerUp={(e) => props.onPointerUp(e, this)}
+        onPointerDown={(e) => onPointerDown(e, this)}
+        onPointerMove={(e) => onPointerMove(e, this)}
+        onPointerUp={(e) => onPointerUp(e, this)}
       >
-        <input
-          type="text"
-          value={this.value}
-          onChange={(e) =>
-            this.update((props) => {
-              props.value = e.target.value;
-            })
-          }
-        />
+        {
+          <input
+            className="outline-none"
+            type="text"
+            value={this.value}
+            onChange={(e) =>
+              this.update((props) => {
+                props.value = e.target.value;
+              })
+            }
+            onFocus={(e) => onFocus(e, this)}
+            onBlur={(e) => onBlur(e, this)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Backspace") {
+                if (this.value.length === 0) {
+                  this.destroy();
+                }
+              }
+            }}
+          />
+        }
       </div>
     );
   }
 }
+
+const Input = () => {};

@@ -123,6 +123,8 @@ export class Card extends Node {
     onPointerDown,
     onPointerMove,
     onPointerUp,
+    onBlur,
+    onFocus,
   }: NodeViewProps) {
     const isBeingDragged = draggedNode?.id === this.id;
     const isSelected = selectedNode?.id === this.id;
@@ -132,8 +134,8 @@ export class Card extends Node {
       <div
         className={`shadow-md 
           ${isRoot ? "bg-gray-100" : "bg-white border rounded-md"}
-          ${isBeingDragged ? "pointer-events-none" : ""} 
-          ${isSelected ? "border-blue-500 z-1" : "border-gray-100 "}`}
+          ${isBeingDragged && !isRoot ? "pointer-events-none" : ""} 
+          ${isSelected ? "border-blue-500" : "border-gray-100 "}`}
         style={{
           position: "absolute",
           width: this.width === "100%" ? "100%" : `${this.width}px`,
@@ -153,6 +155,8 @@ export class Card extends Node {
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
+            onBlur={onBlur}
+            onFocus={onFocus}
           />
         ))}
       </div>

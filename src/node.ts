@@ -47,6 +47,8 @@ export type NodeViewProps = {
     node: Node
   ) => void;
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>, node: Node) => void;
+  onBlur: (event: React.FocusEvent<HTMLDivElement>, node: Node) => void;
+  onFocus: (event: React.FocusEvent<HTMLDivElement>, node: Node) => void;
 };
 
 export const NodeView = ({

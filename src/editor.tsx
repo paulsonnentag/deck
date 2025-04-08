@@ -1,16 +1,24 @@
 import { DocumentId } from "@automerge/automerge-repo";
 
-import { useCallback, useEffect, useMemo, useState, PointerEvent } from "react";
+import { useEffect, useMemo, useState, PointerEvent, useRef } from "react";
 import { useDocument, useHandle } from "@automerge/automerge-repo-react-hooks";
 import * as Automerge from "@automerge/automerge/next";
 import { Node, NodeView } from "./node";
 import { Card } from "./card";
 import { NodesDoc, useNodes } from "./nodes";
+import { useStaticCallback } from "./hooks";
+import { Field } from "./field";
 
 const DEBUG_MODE = true;
 
+const DOUBLE_CLICK_TIME = 200;
+
 type DragState = {
   offset: { x: number; y: number };
+};
+
+type FieldToolState = {
+  type: "field";
 };
 
 type PointerToolState = {
@@ -28,7 +36,7 @@ type CardToolState = {
   };
 };
 
-type ToolState = CardToolState | PointerToolState;
+type ToolState = CardToolState | PointerToolState | FieldToolState;
 
 type AppProps = {
   documentId: DocumentId;
@@ -64,103 +72,134 @@ export const Editor = ({ documentId }: AppProps) => {
     }
   }, [nodes, tool]);
 
-  const onKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      // copy card
-      if (event.code === "KeyC" && (event.ctrlKey || event.metaKey)) {
-        if (selectedNode) {
-          setClipboard(selectedNode);
-        }
+  const onKeyDown = useStaticCallback((event: KeyboardEvent) => {
+    // copy card
+    if (event.code === "KeyC" && (event.ctrlKey || event.metaKey)) {
+      // if (selectedNode) {
+      //   setClipboard(selectedNode);
+      // }
+      //
+      // cut card
+    } else if (event.code === "KeyX" && (event.ctrlKey || event.metaKey)) {
+      // if (selectedNode) {
+      //   // todo
+      //   console.log("todo implement cut node");
+      // }
+      //
+      // paste card
+    } else if (event.code === "KeyV" && (event.ctrlKey || event.metaKey)) {
+      // if (clipboard) {
+      //   const newObj = clipboard.copy();
+      //   newObj.setGlobalPosition({ x: 0, y: 0 });
+      //   setTool({
+      //     type: "pointer",
+      //     state: { activeNode: newObj },
+      //   });
+      // }
+      //
+      // switch to card tool
+    } else if (event.code === "KeyC" || event.code === "KeyR") {
+      setTool({ type: "card" });
 
-        // cut card
-      } else if (event.code === "KeyX" && (event.ctrlKey || event.metaKey)) {
-        if (selectedNode) {
-          // todo
-          console.log("todo implement cut node");
-        }
+      // switch to field tool
+    } else if (event.code === "KeyF" || event.code === "KeyT") {
+      setTool({ type: "field" });
 
-        // paste card
-      } else if (event.code === "KeyV" && (event.ctrlKey || event.metaKey)) {
-        if (clipboard) {
-          const newObj = clipboard.copy();
-          newObj.setGlobalPosition({ x: 0, y: 0 });
-
-          setTool({
-            type: "pointer",
-            state: { activeNode: newObj },
-          });
-        }
-
-        // switch to card tool
-      } else if (event.code === "KeyC" || event.code === "KeyR") {
-        setTool({ type: "card" });
-
-        // delete card
-      } else if (event.code === "Backspace") {
-        if (selectedNode) {
-          selectedNode.destroy();
-        }
-        // cancel selection
-      } else if (event.code === "Escape") {
-        setTool({ type: "pointer" });
+      // delete card
+    } else if (event.code === "Backspace") {
+      if (selectedNode) {
+        selectedNode.destroy();
       }
-    },
-    [selectedNode, clipboard]
+      // cancel selection
+    } else if (event.code === "Escape") {
+      setTool({ type: "pointer" });
+    }
+  });
+
+  const onDoubleClick = useStaticCallback(
+    (event: PointerEvent<HTMLDivElement>, node: Node) => {
+      if (event.isPrimary === false) return;
+
+      event.stopPropagation();
+
+      console.log("onDoubleClick", node);
+    }
   );
 
-  const onPointerDown = useCallback(
+  const onPointerDown = useStaticCallback(
     (event: PointerEvent<HTMLDivElement>, node: Node) => {
       if (event.isPrimary === false || !nodesDocHandle || !rootNode) return;
 
       event.stopPropagation();
 
-      if (tool.type === "card") {
-        const parentCard: Card = node instanceof Card ? node : node.parent!;
+      switch (tool.type) {
+        case "card": {
+          const parentCard: Card = node instanceof Card ? node : node.parent!;
+          const offset = parentCard.globalPos();
 
-        const offset = parentCard.globalPos();
+          const newCard = Card.create(nodesDocHandle, {
+            width: 0,
+            height: 0,
+            x: event.clientX - offset.x,
+            y: event.clientY - offset.y,
+          });
 
-        const newCard = Card.create(nodesDocHandle, {
-          width: 0,
-          height: 0,
-          x: event.clientX - offset.x,
-          y: event.clientY - offset.y,
-        });
+          parentCard.update((card) => {
+            card.childIds[newCard.id] = true;
+          });
 
-        parentCard.update((card) => {
-          card.childIds[newCard.id] = true;
-        });
+          setTool({
+            type: "card",
+            state: { activeCardId: newCard.id },
+          });
+          break;
+        }
 
-        setTool({
-          type: "card",
-          state: { activeCardId: newCard.id },
-        });
-      } else if (tool.type === "pointer") {
-        const offset = node.globalPos();
+        case "pointer": {
+          const offset = node.globalPos();
 
-        if (node.id === rootNode.id) {
           setTool({
             type: "pointer",
-          });
-          return;
-        }
-        setTool({
-          type: "pointer",
-          state: {
-            activeNodeId: node.id,
-            dragState: {
-              offset: {
-                x: event.clientX - offset.x,
-                y: event.clientY - offset.y,
+            state: {
+              activeNodeId: node.id,
+              dragState: {
+                offset: {
+                  x: event.clientX - offset.x,
+                  y: event.clientY - offset.y,
+                },
               },
             },
-          },
-        });
+          });
+          break;
+        }
+
+        case "field": {
+          const parentCard: Card = node instanceof Card ? node : node.parent!;
+          const offset = parentCard.globalPos();
+
+          const newField = Field.create(nodesDocHandle, {
+            x: event.clientX - offset.x,
+            y: event.clientY - offset.y,
+            value: "",
+          });
+
+          parentCard.update((card) => {
+            card.childIds[newField.id] = true;
+          });
+
+          setTool({
+            type: "pointer",
+            state: {
+              activeNodeId: newField.id,
+            },
+          });
+          break;
+        }
       }
-    },
-    [nodesDocHandle, tool.type, rootNode]
+    }
   );
 
-  const onPointerMove = useCallback(
+  const onPointerMove = useStaticCallback(
     (event: PointerEvent<HTMLDivElement>, node: Node) => {
       if (event.isPrimary === false || !nodes) return;
 
@@ -215,11 +254,10 @@ export const Editor = ({ documentId }: AppProps) => {
           break;
         }
       }
-    },
-    [tool, nodes]
+    }
   );
 
-  const onPointerUp = useCallback(
+  const onPointerUp = useStaticCallback(
     (event: PointerEvent<HTMLDivElement>, node: Node) => {
       if (event.isPrimary === false) return;
 
@@ -230,7 +268,9 @@ export const Editor = ({ documentId }: AppProps) => {
           if (tool.state?.activeCardId) {
             setTool({
               type: "pointer",
-              state: { activeNodeId: tool.state.activeCardId },
+              state: {
+                activeNodeId: tool.state.activeCardId,
+              },
             });
           }
           break;
@@ -241,13 +281,39 @@ export const Editor = ({ documentId }: AppProps) => {
 
           setTool({
             type: "pointer",
-            state: { activeNodeId: tool.state.activeNodeId },
+            state: {
+              activeNodeId: tool.state.activeNodeId,
+            },
           });
           break;
         }
       }
-    },
-    [tool]
+    }
+  );
+
+  const onBlur = useStaticCallback(
+    (event: React.FocusEvent<HTMLDivElement>, node: Node) => {
+      event.stopPropagation();
+
+      if (tool.type === "pointer") {
+        setTool({
+          type: "pointer",
+        });
+      }
+    }
+  );
+
+  const onFocus = useStaticCallback(
+    (event: React.FocusEvent<HTMLDivElement>, node: Node) => {
+      event.stopPropagation();
+
+      setTool({
+        type: "pointer",
+        state: {
+          activeNodeId: node.id,
+        },
+      });
+    }
   );
 
   useEffect(() => {
@@ -257,9 +323,9 @@ export const Editor = ({ documentId }: AppProps) => {
 
   return (
     <div
-      className={`w-screen h-screen overflow-auto bg-gray-50 ${
-        tool.type === "card" ? "cursor-crosshair" : ""
-      }`}
+      className={`w-screen h-screen overflow-auto bg-gray-50 
+        ${tool.type === "card" ? "cursor-crosshair" : ""}
+        ${tool.type === "field" ? "cursor-text" : ""}`}
     >
       {rootNode && (
         <NodeView
@@ -269,6 +335,8 @@ export const Editor = ({ documentId }: AppProps) => {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onBlur={onBlur}
+          onFocus={onFocus}
         />
       )}
       {DEBUG_MODE && stats ? (
