@@ -6,6 +6,7 @@ import { NodesDoc } from "./nodes";
 export type FieldProps = {
   type: "field";
   id: string;
+  copyOf?: string;
   x: number;
   y: number;
   value: string;
@@ -35,9 +36,18 @@ export class Field extends Node {
   update(callback: (props: FieldProps) => void) {
     this.docHandle.change((doc) => {
       const node = doc.nodes[this.id];
+      // only run callback if node exists
       if (node) {
         callback(node as FieldProps);
       }
+    });
+  }
+
+  copy(): Node {
+    return Field.create(this.docHandle, {
+      x: this.x,
+      y: this.y,
+      value: this.value,
     });
   }
 
@@ -62,6 +72,7 @@ export class Field extends Node {
     docHandle: DocHandle<NodesDoc>,
     props: Omit<FieldProps, "type" | "id"> & {
       id?: string;
+      copyOf?: string;
     }
   ) {
     const field = new Field(
@@ -130,5 +141,3 @@ export class Field extends Node {
     );
   }
 }
-
-const Input = () => {};

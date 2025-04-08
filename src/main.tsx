@@ -13,11 +13,7 @@ const repo = new Repo({
   storage: new IndexedDBStorageAdapter(),
 });
 
-// Parse document ID from URL if present
-const urlParams = new URLSearchParams(window.location.search);
-let documentId =
-  (urlParams.get("docId") as DocumentId) ||
-  (localStorage.getItem("documentId") as DocumentId);
+let documentId = localStorage.getItem("documentId") as DocumentId;
 
 if (!documentId) {
   const handle = repo.create<NodesDoc>();
@@ -40,12 +36,7 @@ if (!documentId) {
 
   documentId = handle.documentId;
 
-  // Update URL with the new document ID
-  const newUrl = new URL(window.location.href);
-  newUrl.searchParams.set("docId", documentId);
-  window.history.pushState({}, "", newUrl.toString());
-
-  //  localStorage.setItem("documentId", handle.documentId);
+  localStorage.setItem("documentId", handle.documentId);
 }
 
 const root = createRoot(document.getElementById("root")!);

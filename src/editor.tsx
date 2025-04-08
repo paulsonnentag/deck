@@ -53,7 +53,7 @@ export const Editor = ({ documentId }: AppProps) => {
   }, [nodes]);
 
   const [tool, setTool] = useState<ToolState>({ type: "pointer" });
-  const [clipboard, setClipboard] = useState<any>(null);
+  const [clipboard, setClipboard] = useState<Node | null>(null);
   const stats = useMemo(() => {
     if (nodesDoc) {
       return Automerge.stats(nodesDoc);
@@ -75,28 +75,35 @@ export const Editor = ({ documentId }: AppProps) => {
   const onKeyDown = useStaticCallback((event: KeyboardEvent) => {
     // copy card
     if (event.code === "KeyC" && (event.ctrlKey || event.metaKey)) {
-      // if (selectedNode) {
-      //   setClipboard(selectedNode);
-      // }
-      //
+      if (selectedNode && selectedNode !== rootNode) {
+        setClipboard(selectedNode);
+      }
+
       // cut card
     } else if (event.code === "KeyX" && (event.ctrlKey || event.metaKey)) {
-      // if (selectedNode) {
-      //   // todo
-      //   console.log("todo implement cut node");
-      // }
-      //
+      if (selectedNode && selectedNode !== rootNode) {
+        setClipboard(selectedNode);
+        selectedNode.destroy();
+      }
+
       // paste card
     } else if (event.code === "KeyV" && (event.ctrlKey || event.metaKey)) {
-      // if (clipboard) {
-      //   const newObj = clipboard.copy();
-      //   newObj.setGlobalPosition({ x: 0, y: 0 });
-      //   setTool({
-      //     type: "pointer",
-      //     state: { activeNode: newObj },
-      //   });
-      // }
-      //
+      if (clipboard) {
+        console.log("paste card", clipboard);
+
+        const newObj = clipboard.copy();
+        const parent = clipboard.parent as Card;
+
+        parent.update((card) => {
+          card.childIds[newObj.id] = true;
+        });
+
+        setTool({
+          type: "pointer",
+          state: { activeNodeId: newObj.id },
+        });
+      }
+
       // switch to card tool
     } else if (event.code === "KeyC" || event.code === "KeyR") {
       setTool({ type: "card" });
@@ -115,16 +122,6 @@ export const Editor = ({ documentId }: AppProps) => {
       setTool({ type: "pointer" });
     }
   });
-
-  const onDoubleClick = useStaticCallback(
-    (event: PointerEvent<HTMLDivElement>, node: Node) => {
-      if (event.isPrimary === false) return;
-
-      event.stopPropagation();
-
-      console.log("onDoubleClick", node);
-    }
-  );
 
   const onPointerDown = useStaticCallback(
     (event: PointerEvent<HTMLDivElement>, node: Node) => {

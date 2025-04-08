@@ -11,6 +11,7 @@ export abstract class Node {
   abstract docHandle: DocHandle<NodesDoc>;
   abstract view(props: NodeViewProps): React.ReactNode;
   abstract update(callback: (props: { x: number; y: number }) => void): void;
+  abstract copy(): Node;
 
   globalPos(): { x: number; y: number } {
     if (this.parent) {

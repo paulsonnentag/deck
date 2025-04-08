@@ -61,6 +61,16 @@ export class Card extends Node {
     });
   }
 
+  copy(): Node {
+    return Card.create(this.docHandle, {
+      x: this.x,
+      y: this.y,
+      width: this.width,
+      height: this.height,
+      children: this.children.map((child) => child.copy()),
+    });
+  }
+
   static load(
     docHandle: DocHandle<NodesDoc>,
     id: string,
