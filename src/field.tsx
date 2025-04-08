@@ -13,7 +13,7 @@ export type FieldProps = {
 
 export class Field extends Node {
   constructor(
-    private docHandle: DocHandle<NodesDoc>,
+    public docHandle: DocHandle<NodesDoc>,
     public id: string,
     public x: number,
     public y: number,

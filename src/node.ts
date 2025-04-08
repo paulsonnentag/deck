@@ -1,4 +1,6 @@
+import { DocHandle } from "@automerge/automerge-repo";
 import { Card } from "./card";
+import { NodesDoc } from "./nodes";
 
 export abstract class Node {
   parent?: Card;
@@ -6,6 +8,7 @@ export abstract class Node {
   abstract id: string;
   abstract x: number;
   abstract y: number;
+  abstract docHandle: DocHandle<NodesDoc>;
   abstract view(props: NodeViewProps): React.ReactNode;
   abstract update(callback: (props: { x: number; y: number }) => void): void;
 
@@ -17,6 +20,18 @@ export abstract class Node {
       };
     }
     return { x: this.x, y: this.y };
+  }
+
+  destroy() {
+    if (this.parent) {
+      this.parent.update((card) => {
+        delete card.childIds[this.id];
+      });
+    }
+
+    this.docHandle.change((doc) => {
+      delete doc.nodes[this.id];
+    });
   }
 }
 

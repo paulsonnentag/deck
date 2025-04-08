@@ -40,6 +40,10 @@ export const Editor = ({ documentId }: AppProps) => {
   const [nodesDoc] = useDocument<NodesDoc>(documentId);
   const rootNode = nodesDoc ? nodes?.[nodesDoc.rootNodeId] : undefined;
 
+  useEffect(() => {
+    (window as any).nodes = nodes;
+  }, [nodes]);
+
   const [tool, setTool] = useState<ToolState>({ type: "pointer" });
   const [clipboard, setClipboard] = useState<any>(null);
   const stats = useMemo(() => {
@@ -94,8 +98,7 @@ export const Editor = ({ documentId }: AppProps) => {
         // delete card
       } else if (event.code === "Backspace") {
         if (selectedNode) {
-          // todo
-          console.log("todo implement delete node");
+          selectedNode.destroy();
         }
         // cancel selection
       } else if (event.code === "Escape") {

@@ -15,7 +15,7 @@ export type CardProps = {
 
 export class Card extends Node {
   constructor(
-    private docHandle: DocHandle<NodesDoc>,
+    public docHandle: DocHandle<NodesDoc>,
     public id: string,
     public x: number,
     public y: number,
@@ -45,7 +45,19 @@ export class Card extends Node {
 
   update(callback: (props: CardProps) => void) {
     this.docHandle.change((doc) => {
-      callback(doc.nodes[this.id] as CardProps);
+      const node = doc.nodes[this.id] as CardProps;
+      // only run callback if node exists
+      if (node) {
+        callback(doc.nodes[this.id] as CardProps);
+      }
+    });
+  }
+
+  destroy() {
+    super.destroy();
+
+    this.children.forEach((child) => {
+      child.destroy();
     });
   }
 
