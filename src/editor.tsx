@@ -124,7 +124,7 @@ export const Editor = ({ documentId }: AppProps) => {
         });
 
         parentCard.update((card) => {
-          card.childIds.push(newCard.id);
+          card.childIds[newCard.id] = true;
         });
 
         setTool({
@@ -187,17 +187,21 @@ export const Editor = ({ documentId }: AppProps) => {
           const dragState = tool.state?.dragState;
           if (!activeNode || !dragState) break;
 
-          // if (activeNode.parent !== node) {
-          //   activeNode.parent!.update((parent) => {
-          //     parent.childIds = parent.childIds.filter(
-          //   })
+          if (activeNode.parent !== node) {
+            activeNode.parent!.update((parent) => {
+              delete parent.childIds[activeNode.id];
+            });
 
-          //   const offset = node.globalPos();
-          //   activeNode.update((node) => {
-          //     node.x = event.clientX - offset.x - dragState.offset.x;
-          //     node.y = event.clientY - offset.y - dragState.offset.y;
-          //   });
-          // }
+            (node as Card).update((card) => {
+              card.childIds[activeNode.id] = true;
+            });
+
+            const offset = node.globalPos();
+            activeNode.update((node) => {
+              node.x = event.clientX - offset.x - dragState.offset.x;
+              node.y = event.clientY - offset.y - dragState.offset.y;
+            });
+          }
 
           const offset = node.globalPos();
 

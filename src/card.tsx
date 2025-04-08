@@ -10,7 +10,7 @@ export type CardProps = {
   y: number;
   width: number | "100%";
   height: number | "100%";
-  childIds: string[];
+  childIds: Record<string, true>;
 };
 
 export class Card extends Node {
@@ -27,6 +27,11 @@ export class Card extends Node {
   }
 
   serialize(): CardProps {
+    const childIds: Record<string, true> = {};
+    for (const child of this.children) {
+      childIds[child.id] = true;
+    }
+
     return {
       type: "card",
       id: this.id,
@@ -34,7 +39,7 @@ export class Card extends Node {
       y: this.y,
       width: this.width,
       height: this.height,
-      childIds: this.children.map((child) => child.id),
+      childIds,
     };
   }
 
@@ -54,6 +59,7 @@ export class Card extends Node {
     }
 
     const props = docHandle.docSync()!.nodes[id] as CardProps;
+
     const card = new Card(
       docHandle,
       id,
@@ -61,7 +67,9 @@ export class Card extends Node {
       props.y,
       props.width,
       props.height,
-      props.childIds.map((childId) => loadNode(docHandle, nodes, childId))
+      Object.keys(props.childIds).map((childId) =>
+        loadNode(docHandle, nodes, childId)
+      )
     );
 
     for (const child of card.children) {
