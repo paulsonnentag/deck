@@ -2,6 +2,7 @@ import { DocHandle } from "@automerge/automerge-repo";
 import { v4 as uuid } from "uuid";
 import { Node, NodeViewProps } from "./node";
 import { NodesDoc } from "./nodes";
+import { Color, colorToHex, FontSize, fontSizeToPx } from "./inspector";
 
 export type FieldProps = {
   type: "field";
@@ -10,6 +11,8 @@ export type FieldProps = {
   x: number;
   y: number;
   value: string;
+  color?: Color;
+  fontSize?: FontSize;
 };
 
 export class Field extends Node {
@@ -18,19 +21,31 @@ export class Field extends Node {
     public id: string,
     public x: number,
     public y: number,
-    public value: string
+    public value: string,
+    public color?: Color,
+    public fontSize?: FontSize
   ) {
     super();
   }
 
   serialize(): FieldProps {
-    return {
+    const props: FieldProps = {
       type: "field",
       id: this.id,
       x: this.x,
       y: this.y,
       value: this.value,
     };
+
+    if (this.color) {
+      props.color = this.color;
+    }
+
+    if (this.fontSize) {
+      props.fontSize = this.fontSize;
+    }
+
+    return props;
   }
 
   update(callback: (props: FieldProps) => void) {
@@ -44,11 +59,24 @@ export class Field extends Node {
   }
 
   copy(): Node {
-    return Field.create(this.docHandle, {
+    const props: Omit<FieldProps, "type" | "id"> & {
+      id?: string;
+      copyOf?: string;
+    } = {
       x: this.x,
       y: this.y,
       value: this.value,
-    });
+    };
+
+    if (this.color) {
+      props.color = this.color;
+    }
+
+    if (this.fontSize) {
+      props.fontSize = this.fontSize;
+    }
+
+    return Field.create(this.docHandle, props);
   }
 
   static load(
@@ -61,8 +89,15 @@ export class Field extends Node {
     }
 
     const props = docHandle.docSync()!.nodes[id] as FieldProps;
-    const field = new Field(docHandle, id, props.x, props.y, props.value);
-
+    const field = new Field(
+      docHandle,
+      id,
+      props.x,
+      props.y,
+      props.value,
+      props.color,
+      props.fontSize
+    );
     nodes[id] = field;
 
     return field;
@@ -80,7 +115,9 @@ export class Field extends Node {
       props.id ?? uuid(),
       props.x,
       props.y,
-      props.value
+      props.value,
+      props.color,
+      props.fontSize
     );
 
     docHandle.change((doc) => {
@@ -96,15 +133,14 @@ export class Field extends Node {
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    onBlur,
     onFocus,
   }: NodeViewProps) {
     const isBeingDragged = draggedNode?.id === this.id;
     const isSelected = selectedNode?.id === this.id;
     return (
       <div
-        className={`bg-white border pl-1 
-          ${isSelected ? "border-blue-500" : "border-gray-200"}
+        className={`border pl-1 
+          ${isSelected ? "border-blue-500" : "border-gray-300"}
           ${isBeingDragged ? "pointer-events-none" : ""}
         `}
         style={{
@@ -125,8 +161,11 @@ export class Field extends Node {
                 props.value = e.target.value;
               })
             }
+            style={{
+              color: colorToHex(this.color),
+              fontSize: fontSizeToPx(this.fontSize),
+            }}
             onFocus={(e) => onFocus(e, this)}
-            onBlur={(e) => onBlur(e, this)}
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === "Backspace") {

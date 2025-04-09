@@ -8,10 +8,17 @@ import { Card } from "./card";
 import { NodesDoc, useNodes } from "./nodes";
 import { useStaticCallback } from "./hooks";
 import { Field } from "./field";
+import {
+  ColorPicker,
+  FontSizePicker,
+  FillModePicker,
+  Inspector,
+  InspectorDivider,
+  useInspectorState,
+} from "./inspector";
+import { SwallopPointerEvents } from "./utils";
 
-const DEBUG_MODE = true;
-
-const DOUBLE_CLICK_TIME = 200;
+const DEBUG_MODE = false;
 
 type DragState = {
   offset: { x: number; y: number };
@@ -36,7 +43,7 @@ type CardToolState = {
   };
 };
 
-type ToolState = CardToolState | PointerToolState | FieldToolState;
+export type ToolState = CardToolState | PointerToolState | FieldToolState;
 
 type AppProps = {
   documentId: DocumentId;
@@ -46,13 +53,13 @@ export const Editor = ({ documentId }: AppProps) => {
   const nodes = useNodes(documentId);
   const nodesDocHandle = useHandle<NodesDoc>(documentId);
   const [nodesDoc] = useDocument<NodesDoc>(documentId);
+  const [tool, setTool] = useState<ToolState>({ type: "pointer" });
   const rootNode = nodesDoc ? nodes?.[nodesDoc.rootNodeId] : undefined;
 
   useEffect(() => {
     (window as any).nodes = nodes;
   }, [nodes]);
 
-  const [tool, setTool] = useState<ToolState>({ type: "pointer" });
   const [clipboard, setClipboard] = useState<Node | null>(null);
   const stats = useMemo(() => {
     if (nodesDoc) {
@@ -71,6 +78,11 @@ export const Editor = ({ documentId }: AppProps) => {
       return nodes?.[tool.state.activeNodeId];
     }
   }, [nodes, tool]);
+
+  const [inspectorState, setInspectorState] = useInspectorState({
+    tool,
+    selectedNode,
+  });
 
   const onKeyDown = useStaticCallback((event: KeyboardEvent) => {
     // copy card
@@ -288,18 +300,6 @@ export const Editor = ({ documentId }: AppProps) => {
     }
   );
 
-  const onBlur = useStaticCallback(
-    (event: React.FocusEvent<HTMLDivElement>, node: Node) => {
-      event.stopPropagation();
-
-      if (tool.type === "pointer") {
-        setTool({
-          type: "pointer",
-        });
-      }
-    }
-  );
-
   const onFocus = useStaticCallback(
     (event: React.FocusEvent<HTMLDivElement>, node: Node) => {
       event.stopPropagation();
@@ -332,10 +332,18 @@ export const Editor = ({ documentId }: AppProps) => {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onBlur={onBlur}
           onFocus={onFocus}
         />
       )}
+
+      <div className="absolute top-0 bottom-0 flex flex-col items-center justify-center right-4 pointer-events-none">
+        <div className="pointer-events-auto">
+          <SwallopPointerEvents>
+            <Inspector state={inspectorState} setState={setInspectorState} />
+          </SwallopPointerEvents>
+        </div>
+      </div>
+
       {DEBUG_MODE && stats ? (
         <div className="absolute bottom-0 right-0 p-2 font-mono text-xs pointer-events-none">
           {stats.numChanges} changes, {stats.numOps} ops

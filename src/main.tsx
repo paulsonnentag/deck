@@ -31,6 +31,7 @@ if (!documentId) {
 
   handle.change((doc) => {
     doc.nodes[rootCard.id] = rootCard.serialize();
+
     doc.rootNodeId = rootCard.id;
   });
 
