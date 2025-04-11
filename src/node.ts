@@ -1,6 +1,6 @@
 import { DocHandle } from "@automerge/automerge-repo";
 import { Card } from "./card";
-import { NodesDoc } from "./nodes";
+import { NodeProps, NodesDoc } from "./nodes";
 
 export abstract class Node {
   parent?: Card;
@@ -12,6 +12,7 @@ export abstract class Node {
   abstract view(props: NodeViewProps): React.ReactNode;
   abstract update(callback: (props: { x: number; y: number }) => void): void;
   abstract copy(): Node;
+  abstract serialize(): NodeProps;
 
   globalPos(): { x: number; y: number } {
     if (this.parent) {
@@ -48,7 +49,6 @@ export type NodeViewProps = {
     node: Node
   ) => void;
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>, node: Node) => void;
-  onFocus: (event: React.FocusEvent<HTMLDivElement>, node: Node) => void;
 };
 
 export const NodeView = ({

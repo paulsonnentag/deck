@@ -24,6 +24,10 @@ export type CardProps = {
   fillMode?: FillMode;
 };
 
+export type CardPropsWithChildren = Omit<CardProps, "childIds"> & {
+  children: Node[];
+};
+
 export class Card extends Node {
   constructor(
     public docHandle: DocHandle<NodesDoc>,
@@ -61,6 +65,21 @@ export class Card extends Node {
     }
 
     return props;
+  }
+
+  serializeWithChildren(): CardPropsWithChildren {
+    const props = this.serialize() as any;
+
+    delete props.childIds;
+
+    return {
+      ...props,
+      children: this.children.map((child) =>
+        child instanceof Card
+          ? child.serializeWithChildren()
+          : child.serialize()
+      ),
+    };
   }
 
   update(callback: (props: CardProps) => void) {
@@ -211,7 +230,6 @@ export class Card extends Node {
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
-            onFocus={onFocus}
           />
         ))}
       </div>

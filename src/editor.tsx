@@ -18,7 +18,7 @@ import {
 } from "./inspector";
 import { SwallopPointerEvents } from "./utils";
 
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 type DragState = {
   offset: { x: number; y: number };
@@ -116,6 +116,15 @@ export const Editor = ({ documentId }: AppProps) => {
         });
       }
 
+      // print card
+    } else if (event.code === "KeyP") {
+      event.preventDefault();
+      if (selectedNode) {
+        if (selectedNode instanceof Card) {
+          console.log(selectedNode.serializeWithChildren());
+        }
+      }
+
       // switch to card tool
     } else if (event.code === "KeyC" || event.code === "KeyR") {
       setTool({ type: "card" });
@@ -149,8 +158,8 @@ export const Editor = ({ documentId }: AppProps) => {
           const newCard = Card.create(nodesDocHandle, {
             width: 0,
             height: 0,
-            x: event.clientX - offset.x,
-            y: event.clientY - offset.y,
+            x: Math.round(event.clientX - offset.x),
+            y: Math.round(event.clientY - offset.y),
           });
 
           parentCard.update((card) => {
@@ -173,8 +182,8 @@ export const Editor = ({ documentId }: AppProps) => {
               activeNodeId: node.id,
               dragState: {
                 offset: {
-                  x: event.clientX - offset.x,
-                  y: event.clientY - offset.y,
+                  x: Math.round(event.clientX - offset.x),
+                  y: Math.round(event.clientY - offset.y),
                 },
               },
             },
@@ -187,8 +196,8 @@ export const Editor = ({ documentId }: AppProps) => {
           const offset = parentCard.globalPos();
 
           const newField = Field.create(nodesDocHandle, {
-            x: event.clientX - offset.x,
-            y: event.clientY - offset.y,
+            x: Math.round(event.clientX - offset.x),
+            y: Math.round(event.clientY - offset.y),
             value: "",
           });
 
@@ -224,8 +233,8 @@ export const Editor = ({ documentId }: AppProps) => {
           const offset = activeCard.globalPos();
 
           activeCard.update((card) => {
-            card.width = event.clientX - offset.x;
-            card.height = event.clientY - offset.y;
+            card.width = Math.round(event.clientX - offset.x);
+            card.height = Math.round(event.clientY - offset.y);
           });
           break;
         }
@@ -332,7 +341,6 @@ export const Editor = ({ documentId }: AppProps) => {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onFocus={onFocus}
         />
       )}
 

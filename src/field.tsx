@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import { Node, NodeViewProps } from "./node";
 import { NodesDoc } from "./nodes";
 import { Color, colorToHex, FontSize, fontSizeToPx } from "./inspector";
+import { TextInput } from "./text-input";
 
 export type FieldProps = {
   type: "field";
@@ -133,13 +134,12 @@ export class Field extends Node {
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    onFocus,
   }: NodeViewProps) {
     const isBeingDragged = draggedNode?.id === this.id;
     const isSelected = selectedNode?.id === this.id;
     return (
       <div
-        className={`border pl-1 
+        className={`border px-1
           ${isSelected ? "border-blue-500" : "border-gray-300"}
           ${isBeingDragged ? "pointer-events-none" : ""}
         `}
@@ -152,7 +152,33 @@ export class Field extends Node {
         onPointerUp={(e) => onPointerUp(e, this)}
       >
         {
-          <input
+          <TextInput
+            focus={isSelected}
+            className="outline-none"
+            value={this.value}
+            onChange={(value) =>
+              this.update((props) => {
+                props.value = value;
+              })
+            }
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Backspace") {
+                if (this.value.length === 0) {
+                  this.destroy();
+                }
+              }
+            }}
+          />
+        }
+      </div>
+    );
+  }
+}
+
+/*
+
+{false && <input
             className="outline-none"
             type="text"
             value={this.value}
@@ -174,9 +200,6 @@ export class Field extends Node {
                 }
               }
             }}
-          />
-        }
-      </div>
-    );
-  }
-}
+          />}
+
+*/
