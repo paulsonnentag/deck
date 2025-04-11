@@ -11,6 +11,7 @@ import {
   colorToBackgroundColorHex,
 } from "./inspector";
 import { ColorPicker } from "./inspector";
+import { Field } from "./field";
 
 export type CardProps = {
   type: "card";
@@ -74,11 +75,18 @@ export class Card extends Node {
 
     return {
       ...props,
-      children: this.children.map((child) =>
-        child instanceof Card
-          ? child.serializeWithChildren()
-          : child.serialize()
-      ),
+      children: this.children.flatMap((child) => {
+        if (child instanceof Card) {
+          return child.serializeWithChildren();
+        }
+
+        // filter out prompt fields
+        if (child instanceof Field && child.rule !== undefined) {
+          return [];
+        }
+
+        return child.serialize();
+      }),
     };
   }
 
@@ -188,7 +196,6 @@ export class Card extends Node {
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    onFocus,
   }: NodeViewProps) {
     const isBeingDragged = draggedNode?.id === this.id;
     const isSelected = selectedNode?.id === this.id;

@@ -4,6 +4,7 @@ import { NodeProps, NodesDoc } from "./nodes";
 
 export abstract class Node {
   parent?: Card;
+  copyOf?: Node;
 
   abstract id: string;
   abstract x: number;
@@ -13,6 +14,10 @@ export abstract class Node {
   abstract update(callback: (props: { x: number; y: number }) => void): void;
   abstract copy(): Node;
   abstract serialize(): NodeProps;
+
+  isCopyOf(other: Node): boolean {
+    return this.id === other.id;
+  }
 
   globalPos(): { x: number; y: number } {
     if (this.parent) {

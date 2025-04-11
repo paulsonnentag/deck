@@ -4,6 +4,7 @@ import { Field, FieldProps } from "./field";
 import { DocHandle, DocumentId } from "@automerge/automerge-repo";
 import { Node } from "./node";
 import { useMemo } from "react";
+import { applyRules, useRules } from "./rules";
 
 export type NodeProps = CardProps | FieldProps;
 
@@ -40,7 +41,7 @@ export const useNodes = (
 
   return useMemo(() => {
     if (!nodesDoc || !nodesDocHandle) {
-      return null;
+      return {};
     }
 
     const nodes = {};
@@ -49,6 +50,8 @@ export const useNodes = (
       loadNode(nodesDocHandle, nodes, nodeId);
     }
 
-    return nodes;
+    applyRules(nodes);
+
+    return nodes as Record<string, Node>;
   }, [nodesDoc, nodesDocHandle]);
 };

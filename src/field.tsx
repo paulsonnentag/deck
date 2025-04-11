@@ -4,6 +4,16 @@ import { Node, NodeViewProps } from "./node";
 import { NodesDoc } from "./nodes";
 import { Color, colorToHex, FontSize, fontSizeToPx } from "./inspector";
 import { TextInput } from "./text-input";
+import { generateRule, generateRuleSource } from "./rules";
+
+type Rule =
+  | {
+      type: "pending";
+    }
+  | {
+      type: "source";
+      source: string;
+    };
 
 export type FieldProps = {
   type: "field";
@@ -14,6 +24,7 @@ export type FieldProps = {
   value: string;
   color?: Color;
   fontSize?: FontSize;
+  rule?: Rule;
 };
 
 export class Field extends Node {
@@ -24,7 +35,8 @@ export class Field extends Node {
     public y: number,
     public value: string,
     public color?: Color,
-    public fontSize?: FontSize
+    public fontSize?: FontSize,
+    public rule?: Rule
   ) {
     super();
   }
@@ -97,7 +109,8 @@ export class Field extends Node {
       props.y,
       props.value,
       props.color,
-      props.fontSize
+      props.fontSize,
+      props.rule
     );
     nodes[id] = field;
 
@@ -118,7 +131,8 @@ export class Field extends Node {
       props.y,
       props.value,
       props.color,
-      props.fontSize
+      props.fontSize,
+      props.rule
     );
 
     docHandle.change((doc) => {
@@ -137,10 +151,49 @@ export class Field extends Node {
   }: NodeViewProps) {
     const isBeingDragged = draggedNode?.id === this.id;
     const isSelected = selectedNode?.id === this.id;
+    const isEmpty = this.value.trim() === "";
+
+    const isRulePending = this.rule?.type === "pending";
+    const hasRule = this.rule !== undefined;
+
+    const onPrompt = async () => {
+      this.update((props) => {
+        props.rule = {
+          type: "pending",
+        };
+      });
+
+      console.log(this.parent?.serializeWithChildren());
+
+      const source = await generateRuleSource(this.value, this.parent!);
+
+      console.log("source", source);
+
+      this.update((props) => {
+        if (!source) {
+          delete props.rule;
+        } else {
+          props.rule = {
+            type: "source",
+            source,
+          };
+        }
+      });
+    };
+
     return (
       <div
-        className={`border px-1
-          ${isSelected ? "border-blue-500" : "border-gray-300"}
+        className={`px-1 border          
+          ${hasRule ? "bg-gray-200" : ""}
+          ${isRulePending ? "animate-pulse bg-gray-200" : ""}
+          ${isSelected || this.value.trim() === "" ? "border" : ""}
+          ${
+            isSelected
+              ? "border-blue-500"
+              : isEmpty
+              ? "border-gray-300"
+              : "border-transparent"
+          }
           ${isBeingDragged ? "pointer-events-none" : ""}
         `}
         style={{
@@ -159,14 +212,20 @@ export class Field extends Node {
             onChange={(value) =>
               this.update((props) => {
                 props.value = value;
+                delete props.rule;
               })
             }
-            onKeyDown={(e) => {
+            onKeyDown={async (e) => {
               e.stopPropagation();
               if (e.key === "Backspace") {
                 if (this.value.length === 0) {
                   this.destroy();
                 }
+              }
+
+              if (e.key === "Enter" && e.metaKey) {
+                e.preventDefault();
+                onPrompt();
               }
             }}
           />

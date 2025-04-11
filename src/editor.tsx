@@ -309,19 +309,6 @@ export const Editor = ({ documentId }: AppProps) => {
     }
   );
 
-  const onFocus = useStaticCallback(
-    (event: React.FocusEvent<HTMLDivElement>, node: Node) => {
-      event.stopPropagation();
-
-      setTool({
-        type: "pointer",
-        state: {
-          activeNodeId: node.id,
-        },
-      });
-    }
-  );
-
   useEffect(() => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@automerge/automerge-repo": "^1.2.1",
     "@automerge/automerge-repo-network-websocket": "^1.2.1",
     "@automerge/automerge-repo-react-hooks": "^1.2.1",
@@ -19,6 +20,7 @@
     "clsx": "^2.1.1",
     "eventemitter3": "^5.0.1",
     "lucide-react": "^0.482.0",
+    "outdent": "^0.8.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.0.12",
