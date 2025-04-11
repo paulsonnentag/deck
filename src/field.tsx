@@ -151,7 +151,6 @@ export class Field extends Node {
   }: NodeViewProps) {
     const isBeingDragged = draggedNode?.id === this.id;
     const isSelected = selectedNode?.id === this.id;
-    const isEmpty = this.value.trim() === "";
 
     const isRulePending = this.rule?.type === "pending";
     const hasRule = this.rule !== undefined;
@@ -186,14 +185,7 @@ export class Field extends Node {
         className={`px-1 border          
           ${hasRule ? "bg-gray-200" : ""}
           ${isRulePending ? "animate-pulse bg-gray-200" : ""}
-          ${isSelected || this.value.trim() === "" ? "border" : ""}
-          ${
-            isSelected
-              ? "border-blue-500"
-              : isEmpty
-              ? "border-gray-300"
-              : "border-transparent"
-          }
+          ${isSelected ? "border-blue-500" : "border-transparent"}
           ${isBeingDragged ? "pointer-events-none" : ""}
         `}
         style={{

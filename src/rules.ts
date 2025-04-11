@@ -7,16 +7,63 @@ import { Field } from "./field";
 
 const getGenerateRulePrompt = (explanation: string, card: Card) => {
   return outdent`
-    You are a coding assistant that helps write little code snippets to add
-    dynamic behavior to a white board app. You will get an arrangement of 
-    the cards on screen and a user explanation that describes why the shapes
-    look that way. Based on that you should infer a rule that would generate
-    that would add that appearance dynamically to other shapes that match this
-    description.
+    You are a coding assistant that helps write rules to add dynamic behavior to a white board app. 
 
-    # Example
+    Here is how the white board works:
 
-    Scene:
+    - A white board consists of nested cards and fields
+    - A card can contain other cards or fields
+    - cards and fields store their position relative to their parent card
+    - cards and fields can be copied and pasted 
+    - If a card or field is copied it remembers from which object it was copied from
+    - There is a single root card that contains the entire white board content
+
+    Here is the schema of the objects on the white board:
+
+    \`\`\`javascript
+
+    type Card = {
+      id: string;
+      parent: Card;
+      children: Card | Field[];
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      color: Color;
+    }
+
+    type Field = {
+      id: string;
+      parent: Card;
+      x: number;
+      y: number;
+      value: string;
+      fontSize: number;
+      color: Color;
+    }
+
+    type Color = 
+    
+    \`\`\`
+
+
+    Here is how dynamic behavior is added to the white board:
+
+
+    - The user creates little example scenarios as a card that illustrate a dynamic behavior they want
+    - The user explains why the cards in the example should look the way they do on the example card
+    - You have to generate a javascript function that implements that dynamic behavior
+    - This function can reference the objects in the example card
+    - The function is then called for all objects on the white board
+    - the function should check if the object matches the scenario on the example card
+    - The function should consider objects matching if they are a copy of the object in the example card
+    - The function should also check if the object has the correct parent / sibling relationship as in the example card
+    - If the object is a match the function should mutate the object to match the scenario on the example card
+    
+    # Examples
+
+    Example Card:
 
     ${JSON.stringify([
       {
@@ -52,25 +99,34 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
 
     Response:
 
-    \`\`\`Javascript
+    \`\`\`javascript
+    const exampleSlider = getNode("card1")
+    const exampleKnob = getNode("card2")
+    const exampleField = getNode("field1")
+
     addRule((obj) => {
-      const slider = getNode("card1")
-      const knob = getNode("card2")
-      const field = getNode("field1")
-
-      if (field.isCopyOf(slider) && field.parent.isCopyOf(knob) && obj.parent.isCopyOf(slider)) {
-
-        debugger // add a debugger when the rule is applied
-        const knob = field.parent
-        const slider = knob.parent
-
-        field.value = (knob.x + knob.width / 2) / slider.width * 100      
+      const field = obj
+      if (!field.isCopyOf(exampleField)) {
+        return
       }
+
+      const knob = field.parent
+      if (!knob || !knob.isCopyOf(exampleKnob)) {
+        return
+      }
+
+      const slider = knob.parent
+      if (!slider || !slider.isCopyOf(exampleSlider)) {
+        return
+      }
+
+      field.value = (knob.x + knob.width / 2) / slider.width * 100          
     })
+    \`\`\`
 
     Now apply this to the following request:
 
-    Scene: 
+    Example Card: 
 
     ${JSON.stringify(card.serializeWithChildren())}
 
@@ -146,32 +202,6 @@ export const applyRules = (nodes: Record<string, Node>) => {
       evalRule(api, source);
     }
   }
-
-  api.addRule((obj) => {
-    const slider = api.getNode("d54c986b-d02c-41e7-89c8-fe4ab9fe68e0") as Card;
-    const knob = api.getNode("712c60cb-0009-409a-a02c-e6b435c88c75") as Card;
-    const field = api.getNode("2578e729-922e-4a21-9b9f-4db09cc34e8d") as Field;
-
-    if (obj.isCopyOf(slider)) {
-      const knobCopy = obj.children.find((child) => child.isCopyOf(knob));
-      const fieldCopy = obj.children.find((child) => child.isCopyOf(field));
-
-      const minValue = 0;
-      const maxValue = 50;
-
-      const sliderWidth = slider.width;
-      const knobWidth = knobCopy.width;
-      const knobPosition = knobCopy.x;
-
-      const value = Math.round(
-        ((knobPosition + knobWidth / 2) / sliderWidth) * (maxValue - minValue) +
-          minValue
-      );
-
-      console.log("value", value, maxValue, minValue, knobPosition);
-      fieldCopy.value = value.toString();
-    }
-  });
 
   for (const node of Object.values(nodes)) {
     for (const rule of rules) {
