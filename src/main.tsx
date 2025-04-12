@@ -13,7 +13,8 @@ const repo = new Repo({
   storage: new IndexedDBStorageAdapter(),
 });
 
-let documentId = localStorage.getItem("documentId") as DocumentId;
+// Get document ID from URL hash if available
+let documentId = window.location.hash.slice(1) as DocumentId;
 
 if (!documentId) {
   const handle = repo.create<NodesDoc>();
@@ -37,7 +38,8 @@ if (!documentId) {
 
   documentId = handle.documentId;
 
-  localStorage.setItem("documentId", handle.documentId);
+  // Update URL with the new document ID
+  window.location.hash = documentId;
 }
 
 const root = createRoot(document.getElementById("root")!);
