@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Node } from "./node";
-import { ToolState } from "./editor";
-import { Card } from "./card";
-import { Field } from "./field";
+import { ToolState } from "./Editor";
+import { Card } from "./Card";
+import { Field } from "./Field";
 import { useStaticCallback } from "./hooks";
 import colors from "tailwindcss/colors";
+import { Obj } from "./Obj";
 
 const COLORS = {
   black: colors.black,
@@ -160,7 +160,7 @@ export const useInspectorState = ({
   selectedNode,
 }: {
   tool: ToolState;
-  selectedNode?: Node;
+  selectedNode?: Obj;
 }): [InspectorState, (state: Partial<InspectorState>) => void] => {
   const [_inspectorState, _setInspectorState] = useState<InspectorState>({
     color: "black",
@@ -176,12 +176,12 @@ export const useInspectorState = ({
 
       if (selectedNode instanceof Card) {
         const card = selectedNode as Card;
-        color = (card.color as Color) || "black";
-        fillMode = card.fillMode || "none";
+        color = (card.props.color as Color) || "black";
+        fillMode = card.props.fillMode || "none";
       } else {
         const field = selectedNode as Field;
-        color = (field.color as Color) || "black";
-        fontSize = field.fontSize || "s";
+        color = (field.props.color as Color) || "black";
+        fontSize = field.props.fontSize || "s";
       }
 
       return {
@@ -217,8 +217,6 @@ export const useInspectorState = ({
         _setInspectorState((prevState) => ({ ...prevState, ...state }));
         return;
       }
-
-      console.log("set", state);
 
       if (selectedNode instanceof Card) {
         const card = selectedNode as Card;

@@ -1,12 +1,11 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { Editor } from "./editor";
+import { Editor } from "./Editor";
 import { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-indexeddb";
 import { DocumentId, Repo } from "@automerge/automerge-repo";
 import { RepoContext } from "@automerge/automerge-repo-react-hooks";
 import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
-import { NodesDoc } from "./nodes";
-import { Card } from "./card";
+import { createObjectsDoc } from "./ObjectsDoc";
 
 const repo = new Repo({
   network: [new BrowserWebSocketClientAdapter("wss://sync.automerge.org")],
@@ -17,30 +16,14 @@ const repo = new Repo({
 let documentId = window.location.hash.slice(1) as DocumentId;
 
 if (!documentId) {
-  const handle = repo.create<NodesDoc>();
-
-  handle.change((doc) => {
-    doc.nodes = {};
-  });
-
-  const rootCard = Card.create(handle, {
-    x: 0,
-    y: 0,
-    width: "100%",
-    height: "100%",
-  });
-
-  handle.change((doc) => {
-    doc.nodes[rootCard.id] = rootCard.serialize();
-
-    doc.rootNodeId = rootCard.id;
-  });
-
+  const handle = createObjectsDoc(repo);
   documentId = handle.documentId;
 
   // Update URL with the new document ID
   window.location.hash = documentId;
 }
+
+(window as any).$handle = repo.find(documentId);
 
 const root = createRoot(document.getElementById("root")!);
 root.render(

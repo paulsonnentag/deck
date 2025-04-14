@@ -18,3 +18,9 @@ export const SwallopPointerEvents = ({
     </div>
   );
 };
+
+export const shouldNeverHappen = (message: string) => {
+  // eslint-disable-next-line no-debugger
+  debugger;
+  throw new Error(message);
+};

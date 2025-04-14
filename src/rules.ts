@@ -1,9 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { outdent } from "outdent";
-import { Card } from "./card";
-import { useEffect } from "react";
-import { Node } from "./node";
-import { Field } from "./field";
+import { Card } from "./Card";
+import { Field } from "./Field";
+import { Obj } from "./Obj";
 
 const getGenerateRulePrompt = (explanation: string, card: Card) => {
   return outdent`
@@ -128,7 +127,7 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
 
     Example Card: 
 
-    ${JSON.stringify(card.serializeWithChildren())}
+    ${JSON.stringify(card)}
 
     User explanation: "${explanation}"
   `;
@@ -165,14 +164,14 @@ const getCode = (response: string) => {
   }
 };
 
-type Rule = (node: Node) => void;
+type Rule = (node: Obj) => void;
 
 type RuleApi = {
   addRule: (rule: Rule) => void;
-  getNode: (id: string) => Node;
+  getNode: (id: string) => Obj;
 };
 
-const getRuleApi = (Nodes: Record<string, Node>, rules: Rule[]) => {
+const getRuleApi = (Nodes: Record<string, Obj>, rules: Rule[]) => {
   return {
     addRule: (rule: Rule) => {
       rules.push(rule);
@@ -192,13 +191,13 @@ const evalRule = (api: RuleApi, source: string) => {
   }
 };
 
-export const applyRules = (nodes: Record<string, Node>) => {
+export const applyRules = (nodes: Record<string, Obj>) => {
   const rules: Rule[] = [];
   const api = getRuleApi(nodes, rules);
 
   for (const node of Object.values(nodes)) {
-    if (node instanceof Field && node.rule?.type === "source") {
-      const source = node.rule.source;
+    if (node instanceof Field && node.props.rule?.type === "source") {
+      const source = node.props.rule.source;
       evalRule(api, source);
     }
   }

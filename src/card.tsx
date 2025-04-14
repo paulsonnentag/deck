@@ -1,219 +1,78 @@
-import { DocHandle } from "@automerge/automerge-repo";
-import { v4 as uuid } from "uuid";
-import { Node, NodeView, NodeViewProps } from "./node";
-import { loadNode, NodesDoc } from "./nodes";
+import { ObjView, Obj, ObjViewProps, ObjProps } from "./Obj";
 import {
-  Inspector,
-  InspectorDivider,
   FillMode,
   colorToHex,
   Color,
   colorToBackgroundColorHex,
-} from "./inspector";
-import { ColorPicker } from "./inspector";
-import { Field } from "./field";
+} from "./Inspector";
 
-export type CardProps = {
+export type CardSchema = {
   type: "card";
-  id: string;
-  x: number;
-  y: number;
   width: number | "100%";
   height: number | "100%";
-  childIds: Record<string, true>;
+  childIds: Record<string, boolean>;
   color?: Color;
   fillMode?: FillMode;
 };
 
-export type CardPropsWithChildren = Omit<CardProps, "childIds"> & {
-  children: Node[];
-};
-
-export class Card extends Node {
-  constructor(
-    public docHandle: DocHandle<NodesDoc>,
-    public id: string,
-    public x: number,
-    public y: number,
-    public width: number | "100%",
-    public height: number | "100%",
-    public children: Node[],
-    public color?: Color,
-    public fillMode?: FillMode
-  ) {
-    super();
-  }
-
-  serialize(): CardProps {
-    const props: CardProps = {
-      type: "card",
-      id: this.id,
-      x: this.x,
-      y: this.y,
-      width: this.width,
-      height: this.height,
-      childIds: Object.fromEntries(
-        this.children.map((child) => [child.id, true])
-      ),
-    };
-
-    if (this.color) {
-      props.color = this.color;
-    }
-
-    if (this.fillMode) {
-      props.fillMode = this.fillMode;
-    }
-
-    return props;
-  }
-
-  serializeWithChildren(): CardPropsWithChildren {
-    const props = this.serialize() as any;
-
-    delete props.childIds;
-
-    return {
-      ...props,
-      children: this.children.flatMap((child) => {
-        if (child instanceof Card) {
-          return child.serializeWithChildren();
-        }
-
-        // filter out prompt fields
-        if (child instanceof Field && child.rule !== undefined) {
-          return [];
-        }
-
-        return child.serialize();
-      }),
-    };
-  }
-
-  update(callback: (props: CardProps) => void) {
-    this.docHandle.change((doc) => {
-      const node = doc.nodes[this.id] as CardProps;
-      // only run callback if node exists
-      if (node) {
-        callback(doc.nodes[this.id] as CardProps);
-      }
-    });
-  }
-
+export class Card extends Obj<CardSchema> {
   destroy() {
-    super.destroy();
+    const { childIds } = this.props;
 
-    this.children.forEach((child) => {
+    Object.keys(childIds).forEach((childId) => {
+      const child = this.getObjectById(childId);
       child.destroy();
     });
+
+    super.destroy();
   }
 
-  copy(): Node {
-    const props: Omit<CardProps, "type" | "id" | "childIds"> & {
-      children?: Node[];
-    } = {
-      x: this.x,
-      y: this.y,
-      width: this.width,
-      height: this.height,
-      children: this.children.map((child) => child.copy()),
-    };
-
-    if (this.color) {
-      props.color = this.color;
-    }
-
-    if (this.fillMode) {
-      props.fillMode = this.fillMode;
-    }
-
-    return Card.create(this.docHandle, props);
-  }
-
-  static load(
-    docHandle: DocHandle<NodesDoc>,
-    id: string,
-    nodes: Record<string, Node>
-  ): Card {
-    if (nodes[id]) {
-      return nodes[id] as Card;
-    }
-
-    const props = docHandle.docSync()!.nodes[id] as CardProps;
-
-    const card = new Card(
-      docHandle,
-      id,
-      props.x,
-      props.y,
-      props.width,
-      props.height,
-      Object.keys(props.childIds).map((childId) =>
-        loadNode(docHandle, nodes, childId)
-      ),
-      props.color,
-      props.fillMode
+  copy(): Card {
+    const copiedProps = this.copyProps();
+    copiedProps.childIds = Object.fromEntries(
+      this.children().map((child) => [child.copy().props.id, true])
     );
 
-    for (const child of card.children) {
-      child.parent = card;
-    }
+    const newCard = new Card(copiedProps, this.getObjectById, this.updateDoc);
 
-    nodes[id] = card;
-
-    return card;
-  }
-
-  static create(
-    docHandle: DocHandle<NodesDoc>,
-    props: Omit<CardProps, "type" | "id" | "childIds"> & {
-      id?: string;
-      children?: Node[];
-    }
-  ) {
-    const card = new Card(
-      docHandle,
-      props.id ?? uuid(),
-      props.x,
-      props.y,
-      props.width,
-      props.height,
-      props.children ?? [],
-      props.color,
-      props.fillMode
-    );
-
-    docHandle.change((doc) => {
-      doc.nodes[card.id] = card.serialize();
+    this.updateDoc((doc) => {
+      doc.objects[newCard.props.id] = newCard.serialize();
     });
 
-    return card;
+    return newCard;
+  }
+  children() {
+    return Object.keys(this.props.childIds).map((id) => {
+      const child = this.getObjectById(id);
+      child.props.parentId = this.props.id;
+      return child;
+    });
   }
 
   view({
-    draggedNode,
-    selectedNode,
+    draggedNode: draggedObj,
+    selectedNode: selectedObj,
     onPointerDown,
     onPointerMove,
     onPointerUp,
-  }: NodeViewProps) {
-    const isBeingDragged = draggedNode?.id === this.id;
-    const isSelected = selectedNode?.id === this.id;
-    const isRoot = !this.parent;
+  }: ObjViewProps) {
+    const { id, width, height, x, y, fillMode, color = "black" } = this.props;
+
+    const isBeingDragged = draggedObj?.props.id === id;
+    const isSelected = selectedObj?.props.id === id;
+    const isRoot = !this.parent();
 
     const style: React.CSSProperties = {
       position: "absolute",
-      width: this.width === "100%" ? "100%" : `${this.width}px`,
-      height: this.height === "100%" ? "100%" : `${this.height}px`,
-      transform: `translate(${this.x}px, ${this.y}px)`,
+      width: width === "100%" ? "100%" : `${width}px`,
+      height: height === "100%" ? "100%" : `${height}px`,
+      transform: `translate(${x}px, ${y}px)`,
     };
 
     if (!isRoot) {
       style.backgroundColor =
-        this.fillMode === "solid"
-          ? colorToBackgroundColorHex(this.color)
-          : "transparent";
-      style.borderColor = colorToHex(this.color);
+        fillMode === "solid" ? colorToBackgroundColorHex(color) : "transparent";
+      style.borderColor = colorToHex(color);
     }
 
     return (
@@ -228,12 +87,12 @@ export class Card extends Node {
         onPointerMove={(e) => onPointerMove(e, this)}
         onPointerUp={(e) => onPointerUp(e, this)}
       >
-        {this.children.map((child) => (
-          <NodeView
-            key={child.id}
-            node={child}
-            draggedNode={draggedNode}
-            selectedNode={selectedNode}
+        {this.children().map((child) => (
+          <ObjView
+            key={child.props.id}
+            obj={child}
+            draggedNode={draggedObj}
+            selectedNode={selectedObj}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -243,3 +102,14 @@ export class Card extends Node {
     );
   }
 }
+
+export const addChild = (card: ObjProps<CardSchema>, child: Obj<unknown>) => {
+  card.childIds[child.props.id] = true;
+};
+
+export const removeChild = (
+  card: ObjProps<CardSchema>,
+  child: Obj<unknown>
+) => {
+  delete card.childIds[child.props.id];
+};

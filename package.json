@@ -18,13 +18,11 @@
     "@automerge/automerge-repo-storage-indexeddb": "^1.2.1",
     "@tailwindcss/vite": "^4.0.12",
     "clsx": "^2.1.1",
-    "eventemitter3": "^5.0.1",
     "lucide-react": "^0.482.0",
     "outdent": "^0.8.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "tailwindcss": "^4.0.12",
-    "uuid": "^11.1.0"
+    "tailwindcss": "^4.0.12"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",

@@ -1,22 +1,17 @@
 import { DocumentId } from "@automerge/automerge-repo";
 
-import { useEffect, useMemo, useState, PointerEvent, useRef } from "react";
+import { useEffect, useMemo, useState, PointerEvent } from "react";
 import { useDocument, useHandle } from "@automerge/automerge-repo-react-hooks";
 import * as Automerge from "@automerge/automerge/next";
-import { Node, NodeView } from "./node";
-import { Card } from "./card";
-import { NodesDoc, useNodes } from "./nodes";
+import { Obj, ObjView } from "./Obj";
+import { addChild, Card } from "./Card";
 import { useStaticCallback } from "./hooks";
-import { Field } from "./field";
-import {
-  ColorPicker,
-  FontSizePicker,
-  FillModePicker,
-  Inspector,
-  InspectorDivider,
-  useInspectorState,
-} from "./inspector";
+import { Field } from "./Field";
+import { Inspector, useInspectorState } from "./Inspector";
 import { SwallopPointerEvents } from "./utils";
+import { ObjectsDoc } from "./ObjectsDoc";
+import { useObjects } from "./ObjectsDoc";
+import { uuid } from "@automerge/automerge";
 
 const DEBUG_MODE = true;
 
@@ -50,52 +45,51 @@ type AppProps = {
 };
 
 export const Editor = ({ documentId }: AppProps) => {
-  const nodes = useNodes(documentId);
-  const nodesDocHandle = useHandle<NodesDoc>(documentId);
-  const [nodesDoc] = useDocument<NodesDoc>(documentId);
+  const { objects, createObject } = useObjects(documentId);
+  const [objectsDoc] = useDocument<ObjectsDoc>(documentId);
   const [tool, setTool] = useState<ToolState>({ type: "pointer" });
-  const rootNode = nodesDoc ? nodes?.[nodesDoc.rootNodeId] : undefined;
+  const rootNode = objectsDoc ? objects[objectsDoc.rootObjectId] : undefined;
 
   useEffect(() => {
-    (window as any).nodes = nodes;
-  }, [nodes]);
+    (window as any).$objects = objects;
+  }, [objects]);
 
-  const [clipboard, setClipboard] = useState<Node | null>(null);
+  const [clipboard, setClipboard] = useState<Obj | null>(null);
   const stats = useMemo(() => {
-    if (nodesDoc) {
-      return Automerge.stats(nodesDoc);
+    if (objectsDoc) {
+      return Automerge.stats(objectsDoc);
     }
-  }, [nodesDoc]);
+  }, [objectsDoc]);
 
-  const selectedNode = useMemo(() => {
+  const selectedObject = useMemo(() => {
     if (tool.type === "pointer" && tool.state?.activeNodeId) {
-      return nodes?.[tool.state.activeNodeId];
+      return objects?.[tool.state.activeNodeId];
     }
-  }, [nodes, tool]);
+  }, [objects, tool]);
 
-  const draggedNode = useMemo(() => {
+  const draggedObject = useMemo(() => {
     if (tool.type === "pointer" && tool.state?.dragState) {
-      return nodes?.[tool.state.activeNodeId];
+      return objects?.[tool.state.activeNodeId];
     }
-  }, [nodes, tool]);
+  }, [objects, tool]);
 
   const [inspectorState, setInspectorState] = useInspectorState({
     tool,
-    selectedNode,
+    selectedNode: selectedObject,
   });
 
   const onKeyDown = useStaticCallback((event: KeyboardEvent) => {
     // copy card
     if (event.code === "KeyC" && (event.ctrlKey || event.metaKey)) {
-      if (selectedNode && selectedNode !== rootNode) {
-        setClipboard(selectedNode);
+      if (selectedObject && selectedObject !== rootNode) {
+        setClipboard(selectedObject);
       }
 
       // cut card
     } else if (event.code === "KeyX" && (event.ctrlKey || event.metaKey)) {
-      if (selectedNode && selectedNode !== rootNode) {
-        setClipboard(selectedNode);
-        selectedNode.destroy();
+      if (selectedObject && selectedObject !== rootNode) {
+        setClipboard(selectedObject);
+        selectedObject.destroy();
       }
 
       // paste card
@@ -104,25 +98,28 @@ export const Editor = ({ documentId }: AppProps) => {
         console.log("paste card", clipboard);
 
         const newObj = clipboard.copy();
-        const parent = clipboard.parent as Card;
+        const parent = clipboard.parent() as Card;
+
+        console.log("newObj", newObj);
 
         parent.update((card) => {
-          card.childIds[newObj.id] = true;
+          addChild(card, newObj);
         });
 
         setTool({
           type: "pointer",
-          state: { activeNodeId: newObj.id },
+          state: { activeNodeId: newObj.props.id },
         });
       }
 
       // print card
     } else if (event.code === "KeyP") {
       event.preventDefault();
-      if (selectedNode) {
-        if (selectedNode instanceof Card) {
-          console.log(selectedNode.serializeWithChildren());
-        }
+      if (selectedObject) {
+        console.log("todo print");
+        // if (selectedNode instanceof Card) {
+        //   console.log(selectedNode.serializeWithChildren());
+        // }
       }
 
       // switch to card tool
@@ -135,8 +132,8 @@ export const Editor = ({ documentId }: AppProps) => {
 
       // delete card
     } else if (event.code === "Backspace") {
-      if (selectedNode) {
-        selectedNode.destroy();
+      if (selectedObject) {
+        selectedObject.destroy();
       }
       // cancel selection
     } else if (event.code === "Escape") {
@@ -145,30 +142,33 @@ export const Editor = ({ documentId }: AppProps) => {
   });
 
   const onPointerDown = useStaticCallback(
-    (event: PointerEvent<HTMLDivElement>, node: Node) => {
-      if (event.isPrimary === false || !nodesDocHandle || !rootNode) return;
+    (event: PointerEvent<HTMLDivElement>, node: Obj) => {
+      if (event.isPrimary === false || !rootNode) return;
 
       event.stopPropagation();
 
       switch (tool.type) {
         case "card": {
-          const parentCard: Card = node instanceof Card ? node : node.parent!;
+          const parentCard: Card = node instanceof Card ? node : node.parent()!;
           const offset = parentCard.globalPos();
 
-          const newCard = Card.create(nodesDocHandle, {
+          const newCard = createObject({
+            id: uuid(),
+            type: "card",
             width: 0,
             height: 0,
             x: Math.round(event.clientX - offset.x),
             y: Math.round(event.clientY - offset.y),
+            childIds: {},
           });
 
           parentCard.update((card) => {
-            card.childIds[newCard.id] = true;
+            addChild(card, newCard);
           });
 
           setTool({
             type: "card",
-            state: { activeCardId: newCard.id },
+            state: { activeCardId: newCard.props.id },
           });
           break;
         }
@@ -179,7 +179,7 @@ export const Editor = ({ documentId }: AppProps) => {
           setTool({
             type: "pointer",
             state: {
-              activeNodeId: node.id,
+              activeNodeId: node.props.id,
               dragState: {
                 offset: {
                   x: Math.round(event.clientX - offset.x),
@@ -192,23 +192,25 @@ export const Editor = ({ documentId }: AppProps) => {
         }
 
         case "field": {
-          const parentCard: Card = node instanceof Card ? node : node.parent!;
+          const parentCard: Card = node instanceof Card ? node : node.parent()!;
           const offset = parentCard.globalPos();
 
-          const newField = Field.create(nodesDocHandle, {
+          const newField = createObject({
+            id: uuid(),
+            type: "field",
             x: Math.round(event.clientX - offset.x),
             y: Math.round(event.clientY - offset.y),
             value: "",
           });
 
           parentCard.update((card) => {
-            card.childIds[newField.id] = true;
+            addChild(card, newField);
           });
 
           setTool({
             type: "pointer",
             state: {
-              activeNodeId: newField.id,
+              activeNodeId: newField.props.id,
             },
           });
           break;
@@ -218,15 +220,15 @@ export const Editor = ({ documentId }: AppProps) => {
   );
 
   const onPointerMove = useStaticCallback(
-    (event: PointerEvent<HTMLDivElement>, node: Node) => {
-      if (event.isPrimary === false || !nodes) return;
+    (event: PointerEvent<HTMLDivElement>, node: Obj) => {
+      if (event.isPrimary === false || !objects) return;
 
       event.stopPropagation();
 
       switch (tool.type) {
         case "card": {
           const activeCard = tool.state?.activeCardId
-            ? (nodes[tool.state.activeCardId] as Card)
+            ? (objects[tool.state.activeCardId] as Card)
             : undefined;
           if (!activeCard) break;
 
@@ -241,19 +243,19 @@ export const Editor = ({ documentId }: AppProps) => {
 
         case "pointer": {
           const activeNode = tool.state?.activeNodeId
-            ? nodes[tool.state.activeNodeId]
+            ? objects[tool.state.activeNodeId]
             : undefined;
 
           const dragState = tool.state?.dragState;
           if (!activeNode || !dragState) break;
 
-          if (activeNode.parent !== node) {
-            activeNode.parent!.update((parent) => {
-              delete parent.childIds[activeNode.id];
+          if (activeNode.parent() !== node) {
+            activeNode.parent()!.update((parent) => {
+              delete parent.childIds[activeNode.props.id];
             });
 
             (node as Card).update((card) => {
-              card.childIds[activeNode.id] = true;
+              card.childIds[activeNode.props.id] = true;
             });
 
             const offset = node.globalPos();
@@ -276,7 +278,7 @@ export const Editor = ({ documentId }: AppProps) => {
   );
 
   const onPointerUp = useStaticCallback(
-    (event: PointerEvent<HTMLDivElement>, node: Node) => {
+    (event: PointerEvent<HTMLDivElement>, node: Obj) => {
       if (event.isPrimary === false) return;
 
       event.stopPropagation();
@@ -321,10 +323,10 @@ export const Editor = ({ documentId }: AppProps) => {
         ${tool.type === "field" ? "cursor-text" : ""}`}
     >
       {rootNode && (
-        <NodeView
-          node={rootNode}
-          draggedNode={draggedNode}
-          selectedNode={selectedNode}
+        <ObjView
+          obj={rootNode}
+          draggedNode={draggedObject}
+          selectedNode={selectedObject}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
