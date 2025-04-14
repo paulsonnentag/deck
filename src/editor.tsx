@@ -116,10 +116,7 @@ export const Editor = ({ documentId }: AppProps) => {
     } else if (event.code === "KeyP") {
       event.preventDefault();
       if (selectedObject) {
-        console.log("todo print");
-        // if (selectedNode instanceof Card) {
-        //   console.log(selectedNode.serializeWithChildren());
-        // }
+        console.log(selectedObject.toPromptXml(""));
       }
 
       // switch to card tool
@@ -260,16 +257,20 @@ export const Editor = ({ documentId }: AppProps) => {
 
             const offset = node.globalPos();
             activeNode.update((node) => {
-              node.x = event.clientX - offset.x - dragState.offset.x;
-              node.y = event.clientY - offset.y - dragState.offset.y;
+              node.x = Math.round(
+                event.clientX - offset.x - dragState.offset.x
+              );
+              node.y = Math.round(
+                event.clientY - offset.y - dragState.offset.y
+              );
             });
           }
 
           const offset = node.globalPos();
 
           activeNode.update((node) => {
-            node.x = event.clientX - offset.x - dragState.offset.x;
-            node.y = event.clientY - offset.y - dragState.offset.y;
+            node.x = Math.round(event.clientX - offset.x - dragState.offset.x);
+            node.y = Math.round(event.clientY - offset.y - dragState.offset.y);
           });
           break;
         }

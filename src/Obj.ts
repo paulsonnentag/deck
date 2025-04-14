@@ -1,8 +1,10 @@
 import { ObjectsDoc } from "./ObjectsDoc";
 import { Card, removeChild } from "./Card";
 import { uuid } from "@automerge/automerge";
+import { objToXML } from "./rules";
 
 export type ObjProps<T = unknown> = {
+  type: string;
   id: string;
   copyOf?: string;
   x: number;
@@ -88,7 +90,12 @@ export abstract class Obj<T = unknown> {
     return copiedProps;
   }
 
+  isCopyOf(obj: Obj) {
+    return obj.props.id === this.props.id;
+  }
+
   abstract copy(): Obj<T>;
+  abstract toPromptXml(indentation: string): string;
   abstract view(props: ObjViewProps): React.ReactNode;
 }
 

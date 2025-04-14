@@ -49,6 +49,23 @@ export class Card extends Obj<CardSchema> {
     });
   }
 
+  toPromptXml(indentation: string = ""): string {
+    const { type, childIds, ...attributes } = this.props;
+    const children = this.children();
+
+    if (children.length === 0) {
+      return `${indentation}<${type} ${Object.entries(attributes)
+        .map(([key, value]) => `${key}="${value}"`)
+        .join(" ")} />`;
+    }
+
+    return `${indentation}<${type} ${Object.entries(attributes)
+      .map(([key, value]) => `${key}="${value}"`)
+      .join(" ")}>\n${children
+      .map((child) => child.toPromptXml(indentation + "  "))
+      .join("\n")}\n${indentation}</${type}>`;
+  }
+
   view({
     draggedNode: draggedObj,
     selectedNode: selectedObj,

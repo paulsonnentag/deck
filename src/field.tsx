@@ -12,7 +12,7 @@ type Rule =
       source: string;
     };
 
-export type FieldProps = {
+export type FieldSchema = {
   type: "field";
   value: string;
   color?: Color;
@@ -20,7 +20,21 @@ export type FieldProps = {
   rule?: Rule;
 };
 
-export class Field extends Obj<FieldProps> {
+export class Field extends Obj<FieldSchema> {
+  toPromptXml(indentation: string): string {
+    const { type, ...attributes } = this.props;
+
+    return `${indentation}<${type} ${Object.entries(attributes)
+      .map(([key, value]) => `${key}="${value}"`)
+      .join(" ")} />`;
+  }
+
+  encodeForPrompt(indentation: string): string {
+    return `${indentation}<${this.props.type} ${Object.entries(this.props)
+      .map(([key, value]) => `${key}="${value}"`)
+      .join(" ")} />`;
+  }
+
   copy(): Field {
     const copiedProps = this.copyProps();
     const newField = new Field(copiedProps, this.getObjectById, this.updateDoc);
@@ -48,27 +62,29 @@ export class Field extends Obj<FieldProps> {
     const hasRule = rule !== undefined;
 
     const onPrompt = async () => {
-      console.log("todo");
-      // this.update((props) => {
-      //   props.rule = {
-      //     type: "pending",
-      //   };
-      // });
+      // don't allow explanations in root node
+      if (!this.parent()!.parent()) {
+        return;
+      }
 
-      // const source = await generateRuleSource(this.value, this.parent!);
+      this.update((props) => {
+        props.rule = {
+          type: "pending",
+        };
+      });
 
-      // console.log("source", source);
+      const source = await generateRuleSource(value, this.parent()!);
 
-      // this.update((props) => {
-      //   if (!source) {
-      //     delete props.rule;
-      //   } else {
-      //     props.rule = {
-      //       type: "source",
-      //       source,
-      //     };
-      //   }
-      // });
+      this.update((props) => {
+        if (!source) {
+          delete props.rule;
+        } else {
+          props.rule = {
+            type: "source",
+            source,
+          };
+        }
+      });
     };
 
     return (

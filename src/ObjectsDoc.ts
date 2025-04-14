@@ -1,15 +1,16 @@
 import { DocHandle, DocumentId, Repo } from "@automerge/automerge-repo";
 import { Card, CardSchema } from "./Card";
-import { Field, FieldProps } from "./Field";
+import { Field, FieldSchema } from "./Field";
 import { Obj, ObjProps } from "./Obj";
 import { uuid } from "@automerge/automerge";
 import { useDocument, useHandle } from "@automerge/automerge-repo-react-hooks";
 import { useMemo } from "react";
 import { shouldNeverHappen } from "./utils";
+import { applyRules } from "./rules";
 
 export type ObjectsDoc = {
   rootObjectId: string;
-  objects: Record<string, ObjProps<CardSchema | FieldProps>>;
+  objects: Record<string, ObjProps<CardSchema | FieldSchema>>;
 };
 
 export const createObjectsDoc = (repo: Repo): DocHandle<ObjectsDoc> => {
@@ -37,7 +38,7 @@ export const loadObjects = (
   objects: Record<string, Obj<unknown>>;
   createObject: {
     (props: ObjProps<CardSchema>): Card;
-    (props: ObjProps<FieldProps>): Field;
+    (props: ObjProps<FieldSchema>): Field;
   };
 } => {
   const objects: Record<string, Obj> = {};
@@ -68,10 +69,10 @@ export const loadObjects = (
   };
 
   function createObject(props: ObjProps<CardSchema>): Card;
-  function createObject(props: ObjProps<FieldProps>): Field;
+  function createObject(props: ObjProps<FieldSchema>): Field;
   function createObject(
-    props: ObjProps<CardSchema | FieldProps>
-  ): Obj<CardSchema | FieldProps> {
+    props: ObjProps<CardSchema | FieldSchema>
+  ): Obj<CardSchema | FieldSchema> {
     switch (props.type) {
       case "card": {
         const card = new Card(props, getObjectById, updateDoc);
@@ -105,7 +106,7 @@ export const useObjects = (
   objects: Record<string, Obj<unknown>>;
   createObject: {
     (props: ObjProps<CardSchema>): Card;
-    (props: ObjProps<FieldProps>): Field;
+    (props: ObjProps<FieldSchema>): Field;
   };
 } => {
   const docHandle = useHandle<ObjectsDoc>(documentId);
@@ -115,12 +116,16 @@ export const useObjects = (
     if (!doc || !docHandle) {
       return {
         objects: {},
-        createObject: (props: ObjProps<CardSchema | FieldProps>) => {
+        createObject: (props: ObjProps<CardSchema | FieldSchema>) => {
           throw new Error("No doc handle");
         },
       };
     }
 
-    return loadObjects(docHandle);
+    const { objects, createObject } = loadObjects(docHandle);
+
+    applyRules(objects);
+
+    return { objects, createObject };
   }, [doc, docHandle]);
 };

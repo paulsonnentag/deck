@@ -21,28 +21,35 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
 
     \`\`\`javascript
 
-    type Card = {
-      id: string;
-      parent: Card;
-      children: Card | Field[];
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      color: Color;
+    type Obj = {
+      props: {
+        id: string;
+        parent: Card;
+        x: number;
+        y: number;
+      }
+      isCopyOf: (obj: Obj) => boolean;
     }
 
-    type Field = {
-      id: string;
-      parent: Card;
-      x: number;
-      y: number;
-      value: string;
-      fontSize: number;
-      color: Color;
+    type Card = Obj & {
+      props: {
+        width: number;
+        height: number;
+        fillMode: "solid" | "none";
+        color: Color;
+      }
+      children: () => (Card | Field)[];
     }
 
-    type Color = 
+    type Field = Obj & {
+      props: {       
+        value: string;
+        fontSize: number;
+        color: Color;
+      }
+    }
+
+    type Color = "black" | "gray" | "purple" | "violet" | "blue" | "lightBlue" | "amber" | "orange" | "green" | "emerald" | "pink" | "red"
     
     \`\`\`
 
@@ -64,37 +71,17 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
 
     Example Card:
 
-    ${JSON.stringify([
-      {
-        type: "card",
-        id: "card1",
-        x: 125,
-        y: 100,
-        width: 449,
-        height: 52,
-        children: [
-          {
-            type: "card",
-            id: "card2",
-            x: 162,
-            y: 7,
-            width: 44,
-            height: 36,
-            children: [
-              {
-                type: "field",
-                id: "field1",
-                x: 9.4921875,
-                y: 5.96484375,
-                value: "50",
-              },
-            ],
-          },
-        ],
-      },
-    ])}
+    <card id="example" width="550" height="221" x="115" y="882" parentId="root">
+      <card id="card1" width="434" height="58" x="60" y="77" parentId="example">
+        <card id="card2" width="71" height="34" x="146" y="10" parentId="card1">
+          <field id="field1" x="20" y="3" value="50" parentId="card2" />
+        </card>
+      </card>
+    </card>
 
-    User explanation: "the knob shows the percentage value of the slider"
+    User explanation: 
+    
+    "the knob shows the percentage value of the slider"
 
     Response:
 
@@ -119,7 +106,7 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
         return
       }
 
-      field.value = (knob.x + knob.width / 2) / slider.width * 100          
+      field.props.value = (knob.props.x + knob.props.width / 2) / slider.props.width * 100          
     })
     \`\`\`
 
@@ -127,7 +114,7 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
 
     Example Card: 
 
-    ${JSON.stringify(card)}
+    ${card.toPromptXml()}
 
     User explanation: "${explanation}"
   `;
@@ -139,7 +126,6 @@ const anthropic = new Anthropic({
 });
 
 export const generateRuleSource = async (explanation: string, card: Card) => {
-  // Generate a haiku
   const message = await anthropic.messages.create({
     model: "claude-3-opus-20240229",
     max_tokens: 1000,
@@ -211,4 +197,20 @@ export const applyRules = (nodes: Record<string, Obj>) => {
       }
     }
   }
+};
+
+export const objToXML = (
+  name: string,
+  attributes: Record<string, any>,
+  content = ""
+) => {
+  const attributeString = Object.entries(attributes)
+    .map(([key, value]) => `${key}="${JSON.stringify(value)}"`)
+    .join(" ");
+
+  if (content) {
+    return `<${name} ${attributeString}>${content}</${name}>`;
+  }
+
+  return `<${name} ${attributeString} />`;
 };
