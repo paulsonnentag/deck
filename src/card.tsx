@@ -16,6 +16,8 @@ export type CardSchema = {
   fillMode?: FillMode;
 };
 
+const DEBUG_COLOR = "";
+
 export class Card extends Obj<CardSchema> {
   destroy() {
     const { childIds } = this.props;
@@ -128,6 +130,54 @@ export class Card extends Obj<CardSchema> {
             onPointerUp={onPointerUp}
           />
         ))}
+
+        {/* Top resize handle */}
+        <div
+          className={`absolute top-[-5px] h-[10px] cursor-ns-resize left-[5px] right-[5px] ${DEBUG_COLOR}`}
+          onPointerDown={(e) => onPointerDown(e, this as Obj, "top")}
+        ></div>
+
+        {/* Left resize handle */}
+        <div
+          className={`absolute left-[-5px] w-[10px] cursor-ew-resize top-[5px] bottom-[5px] ${DEBUG_COLOR}`}
+          onPointerDown={(e) => onPointerDown(e, this as Obj, "left")}
+        ></div>
+
+        {/* Right resize handle */}
+        <div
+          className={`absolute right-[-5px] w-[10px] cursor-ew-resize top-[5px] bottom-[5px] ${DEBUG_COLOR}`}
+          onPointerDown={(e) => onPointerDown(e, this as Obj, "right")}
+        ></div>
+
+        {/* Bottom resize handle */}
+        <div
+          className={`absolute bottom-[-5px] h-[10px] cursor-ns-resize left-[5px] right-[5px] ${DEBUG_COLOR}`}
+          onPointerDown={(e) => onPointerDown(e, this as Obj, "bottom")}
+        ></div>
+
+        {/* Top-left corner resize handle */}
+        <div
+          className={`absolute top-[-5px] left-[-5px] w-[10px] h-[10px] cursor-nwse-resize ${DEBUG_COLOR}`}
+          onPointerDown={(e) => onPointerDown(e, this as Obj, "top-left")}
+        ></div>
+
+        {/* Top-right corner resize handle */}
+        <div
+          className={`absolute top-[-5px] right-[-5px] w-[10px] h-[10px] cursor-nesw-resize ${DEBUG_COLOR}`}
+          onPointerDown={(e) => onPointerDown(e, this as Obj, "top-right")}
+        ></div>
+
+        {/* Bottom-left corner resize handle */}
+        <div
+          className={`absolute bottom-[-5px] left-[-5px] w-[10px] h-[10px] cursor-nesw-resize ${DEBUG_COLOR}`}
+          onPointerDown={(e) => onPointerDown(e, this as Obj, "bottom-left")}
+        ></div>
+
+        {/* Bottom-right corner resize handle */}
+        <div
+          className={`absolute bottom-[-5px] right-[-5px] w-[10px] h-[10px] cursor-nwse-resize ${DEBUG_COLOR}`}
+          onPointerDown={(e) => onPointerDown(e, this as Obj, "bottom-right")}
+        ></div>
       </div>
     );
   }

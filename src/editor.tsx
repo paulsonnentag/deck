@@ -1,7 +1,7 @@
 import { DocumentId } from "@automerge/automerge-repo";
 
 import { useEffect, useMemo, useState, PointerEvent } from "react";
-import { useDocument, useHandle } from "@automerge/automerge-repo-react-hooks";
+import { useDocument } from "@automerge/automerge-repo-react-hooks";
 import * as Automerge from "@automerge/automerge/next";
 import { Obj, ObjView } from "./Obj";
 import { addChild, Card } from "./Card";
@@ -15,8 +15,40 @@ import { uuid } from "@automerge/automerge";
 
 const DEBUG_MODE = true;
 
+export type Handle =
+  | "top"
+  | "bottom"
+  | "left"
+  | "right"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
+const handleToCursorClassName = (handle: Handle) => {
+  switch (handle) {
+    case "top":
+      return "cursor-ns-resize";
+    case "bottom":
+      return "cursor-ns-resize";
+    case "left":
+      return "cursor-ew-resize";
+    case "right":
+      return "cursor-ew-resize";
+    case "top-left":
+      return "cursor-nwse-resize";
+    case "top-right":
+      return "cursor-nesw-resize";
+    case "bottom-left":
+      return "cursor-nesw-resize";
+    case "bottom-right":
+      return "cursor-nwse-resize";
+  }
+};
+
 type DragState = {
   offset: { x: number; y: number };
+  handle?: Handle;
 };
 
 type FieldToolState = {
@@ -28,6 +60,7 @@ type PointerToolState = {
   state?: {
     activeNodeId: string;
     dragState?: DragState;
+    handle?: Handle;
   };
 };
 
@@ -144,7 +177,7 @@ export const Editor = ({ documentId }: AppProps) => {
   });
 
   const onPointerDown = useStaticCallback(
-    (event: PointerEvent<HTMLDivElement>, node: Obj) => {
+    (event: PointerEvent<HTMLDivElement>, node: Obj, handle?: Handle) => {
       if (event.isPrimary === false || !rootNode) return;
 
       event.stopPropagation();
@@ -183,6 +216,7 @@ export const Editor = ({ documentId }: AppProps) => {
             state: {
               activeNodeId: node.props.id,
               dragState: {
+                handle,
                 offset: {
                   x: Math.round(event.clientX - offset.x),
                   y: Math.round(event.clientY - offset.y),
@@ -251,16 +285,86 @@ export const Editor = ({ documentId }: AppProps) => {
           const dragState = tool.state?.dragState;
           if (!activeNode || !dragState) break;
 
-          if (activeNode.parent() !== node) {
-            activeNode.parent()!.update((parent) => {
-              delete parent.childIds[activeNode.props.id];
-            });
+          const handle = dragState.handle;
 
-            (node as Card).update((card) => {
-              card.childIds[activeNode.props.id] = true;
+          console.log("handle", handle);
+
+          // Handle resize if handle is set and we're manipulating a card
+          if (handle && activeNode instanceof Card) {
+            const offset = activeNode.globalPos();
+            const width = activeNode.get("width") as number;
+            const height = activeNode.get("height") as number;
+
+            console.log("resize");
+
+            activeNode.update((node) => {
+              if (
+                handle === "right" ||
+                handle === "top-right" ||
+                handle === "bottom-right"
+              ) {
+                node.width = Math.max(10, Math.round(event.clientX - offset.x));
+              }
+              if (
+                handle === "bottom" ||
+                handle === "bottom-left" ||
+                handle === "bottom-right"
+              ) {
+                node.height = Math.max(
+                  10,
+                  Math.round(event.clientY - offset.y)
+                );
+              }
+              if (
+                handle === "left" ||
+                handle === "top-left" ||
+                handle === "bottom-left"
+              ) {
+                const newWidth = Math.max(
+                  10,
+                  width - Math.round(event.clientX - offset.x)
+                );
+                node.x += width - newWidth;
+                node.width = newWidth;
+              }
+              if (
+                handle === "top" ||
+                handle === "top-left" ||
+                handle === "top-right"
+              ) {
+                const newHeight = Math.max(
+                  10,
+                  height - Math.round(event.clientY - offset.y)
+                );
+                node.y += height - newHeight;
+                node.height = newHeight;
+              }
             });
+          }
+          // Handle dragging
+          else {
+            if (activeNode.parent() !== node) {
+              activeNode.parent()!.update((parent) => {
+                delete parent.childIds[activeNode.props.id];
+              });
+
+              (node as Card).update((card) => {
+                card.childIds[activeNode.props.id] = true;
+              });
+
+              const offset = node.globalPos();
+              activeNode.update((node) => {
+                node.x = Math.round(
+                  event.clientX - offset.x - dragState.offset.x
+                );
+                node.y = Math.round(
+                  event.clientY - offset.y - dragState.offset.y
+                );
+              });
+            }
 
             const offset = node.globalPos();
+
             activeNode.update((node) => {
               node.x = Math.round(
                 event.clientX - offset.x - dragState.offset.x
@@ -270,13 +374,6 @@ export const Editor = ({ documentId }: AppProps) => {
               );
             });
           }
-
-          const offset = node.globalPos();
-
-          activeNode.update((node) => {
-            node.x = Math.round(event.clientX - offset.x - dragState.offset.x);
-            node.y = Math.round(event.clientY - offset.y - dragState.offset.y);
-          });
           break;
         }
       }
@@ -309,6 +406,7 @@ export const Editor = ({ documentId }: AppProps) => {
             type: "pointer",
             state: {
               activeNodeId: tool.state.activeNodeId,
+              dragState: undefined,
             },
           });
           break;
@@ -326,7 +424,14 @@ export const Editor = ({ documentId }: AppProps) => {
     <div
       className={`w-screen h-screen overflow-auto bg-gray-50 
         ${tool.type === "card" ? "cursor-crosshair" : ""}
-        ${tool.type === "field" ? "cursor-text" : ""}`}
+        ${tool.type === "field" ? "cursor-text" : ""}
+        ${
+          tool.type === "pointer" &&
+          tool.state?.dragState &&
+          tool.state.dragState.handle
+            ? handleToCursorClassName(tool.state.dragState.handle)
+            : ""
+        }`}
     >
       {rootNode && (
         <ObjView

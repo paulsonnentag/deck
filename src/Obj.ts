@@ -164,7 +164,19 @@ export abstract class Obj<T = unknown> {
 export type ObjViewProps = {
   draggedNode: Obj | undefined;
   selectedNode: Obj | undefined;
-  onPointerDown: (event: React.PointerEvent<HTMLDivElement>, node: Obj) => void;
+  onPointerDown: (
+    event: React.PointerEvent<HTMLDivElement>,
+    node: Obj,
+    handle?:
+      | "top"
+      | "bottom"
+      | "left"
+      | "right"
+      | "top-left"
+      | "top-right"
+      | "bottom-left"
+      | "bottom-right"
+  ) => void;
   onPointerMove: (event: React.PointerEvent<HTMLDivElement>, node: Obj) => void;
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>, node: Obj) => void;
 };
