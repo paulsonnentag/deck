@@ -24,11 +24,11 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
     type Obj = {
       props: {
         id: string;
-        parent: Card;
         x: number;
         y: number;
       }
       isCopyOf: (obj: Obj) => boolean;
+      parent: () => Card | null;
     }
 
     type Card = Obj & {
@@ -167,8 +167,6 @@ const getRuleApi = (Nodes: Record<string, Obj>, rules: Rule[]) => {
 };
 
 const evalRule = (api: RuleApi, source: string) => {
-  console.log("evalRule", source);
-
   try {
     const fn = new Function("api", `with(api) { ${source} }`);
     fn(api);
@@ -184,6 +182,8 @@ export const applyRules = (nodes: Record<string, Obj>) => {
   for (const node of Object.values(nodes)) {
     if (node instanceof Field && node.props.rule?.type === "source") {
       const source = node.props.rule.source;
+
+      console.log("applyRules", source);
       evalRule(api, source);
     }
   }

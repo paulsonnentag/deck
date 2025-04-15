@@ -88,7 +88,7 @@ export class Card extends Obj<CardSchema> {
 
     if (!isRoot) {
       style.backgroundColor =
-        fillMode === "solid" ? colorToBackgroundColorHex(color) : "transparent";
+        fillMode === "solid" ? colorToBackgroundColorHex(color) : "white";
       style.borderColor = colorToHex(color);
     }
 
@@ -97,7 +97,7 @@ export class Card extends Obj<CardSchema> {
         className={`
           ${isRoot ? "bg-gray-100" : "bg-white rounded-md border-2"}
           ${isBeingDragged && !isRoot ? "pointer-events-none" : ""} 
-          ${isSelected ? "outline outline-blue-500" : ""}
+          ${isSelected ? "shadow-solid" : ""}
         `}
         style={style}
         onPointerDown={(e) => onPointerDown(e, this)}

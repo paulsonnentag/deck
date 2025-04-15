@@ -1,6 +1,6 @@
 import { ObjectsDoc } from "./ObjectsDoc";
 import { Card, removeChild } from "./Card";
-import { uuid } from "@automerge/automerge";
+import { uuid, view } from "@automerge/automerge";
 import { objToXML } from "./rules";
 
 export type ObjProps<T = unknown> = {
@@ -80,18 +80,27 @@ export abstract class Obj<T = unknown> {
   }
 
   serialize(): ObjProps<T> {
-    return Object.assign({}, this.props);
+    return structuredClone(this.props);
   }
 
   copyProps(): ObjProps<T> {
     const copiedProps = Object.assign({}, this.props);
     copiedProps.id = uuid();
+    copiedProps.copyOf = this.props.id;
 
     return copiedProps;
   }
 
   isCopyOf(obj: Obj) {
-    return obj.props.id === this.props.id;
+    if (obj.props.id === this.props.id) {
+      return true;
+    }
+
+    if (this.copyOf()?.isCopyOf(obj)) {
+      return true;
+    }
+
+    return false;
   }
 
   abstract copy(): Obj<T>;
