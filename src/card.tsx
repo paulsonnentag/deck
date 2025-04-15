@@ -5,6 +5,7 @@ import {
   Color,
   colorToBackgroundColorHex,
 } from "./Inspector";
+import { Field } from "./Field";
 
 export type CardSchema = {
   type: "card";
@@ -62,7 +63,13 @@ export class Card extends Obj<CardSchema> {
     return `${indentation}<${type} ${Object.keys(attributes)
       .map((key) => `${key}="${this.get(key as keyof CardSchema)}"`)
       .join(" ")}>\n${children
-      .map((child) => child.toPromptXml(indentation + "  "))
+      .flatMap((child) => {
+        if (child instanceof Field && child.get("rule")) {
+          return [];
+        }
+
+        return child.toPromptXml(indentation + "  ");
+      })
       .join("\n")}\n${indentation}</${type}>`;
   }
 
