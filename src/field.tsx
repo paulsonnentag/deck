@@ -1,3 +1,4 @@
+import * as Automerge from "@automerge/automerge";
 import { Obj, ObjViewProps } from "./Obj";
 import { Color, colorToHex, FontSize, fontSizeToPx } from "./Inspector";
 import { generateRuleSource, Rule } from "./rules";

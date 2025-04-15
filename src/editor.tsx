@@ -149,12 +149,7 @@ export const Editor = ({ documentId }: AppProps) => {
     } else if (event.code === "KeyP") {
       event.preventDefault();
       if (selectedObject) {
-        console.log(
-          getGenerateRulePrompt(
-            selectedObject as Field,
-            selectedObject.parent() as Card
-          )
-        );
+        console.log(selectedObject);
       }
 
       // switch to card tool
@@ -283,19 +278,15 @@ export const Editor = ({ documentId }: AppProps) => {
             : undefined;
 
           const dragState = tool.state?.dragState;
-          if (!activeNode || !dragState) break;
+          if (!activeNode || !dragState || activeNode.parent() === null) break;
 
           const handle = dragState.handle;
-
-          console.log("handle", handle);
 
           // Handle resize if handle is set and we're manipulating a card
           if (handle && activeNode instanceof Card) {
             const offset = activeNode.globalPos();
             const width = activeNode.get("width") as number;
             const height = activeNode.get("height") as number;
-
-            console.log("resize");
 
             activeNode.update((node) => {
               if (

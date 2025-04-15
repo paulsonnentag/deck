@@ -1,3 +1,4 @@
+import * as Automerge from "@automerge/automerge";
 import { DocHandle, DocumentId, Repo } from "@automerge/automerge-repo";
 import { Card, CardSchema } from "./Card";
 import { Field, FieldSchema } from "./Field";

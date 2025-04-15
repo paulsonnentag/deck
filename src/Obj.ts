@@ -26,15 +26,15 @@ export abstract class Obj<T = unknown> {
   props: ObjProps<T>;
 
   overrides: Record<string, OverrideValue[]> = {};
+
   get(key: keyof ObjProps<T>) {
-    const overrides = this.overrides[key as string];
+    const overrides = this.overrides[key as string] ?? [];
 
-    if (overrides) {
-      return overrides.find((override: OverrideValue) => override.isActive)
-        ?.value;
-    }
+    const override = overrides.find(
+      (override: OverrideValue) => override.isActive
+    )?.value;
 
-    return this.props[key];
+    return override ?? this.props[key];
   }
 
   getAt(key: keyof ObjProps<T>, heads: Heads) {

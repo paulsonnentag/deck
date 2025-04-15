@@ -243,8 +243,6 @@ const evalRuleDefinition = (
 
   const source = rule.definition.source;
 
-  console.log(source);
-
   try {
     const fn = new Function("api", `with(api) { ${source} }`);
     fn(api(rule));
@@ -260,21 +258,12 @@ export const applyRules = (nodes: Record<string, Obj>) => {
   for (const node of Object.values(nodes)) {
     if (node instanceof Field && node.props.rule) {
       if (node.props.rule.definition) {
+        console.log(node.props.rule.definition.source);
         node.props.rule.definition.exceptions = [];
         evalRuleDefinition(api, node.props.rule as RuleWithDefinition);
       }
     }
   }
-
-  // evalRuleDefinition(api, {
-  //   id: "1",
-  //   createdAt: [],
-  //   definition: {
-  //     type: "source",
-  //     source: outdent`
-  //     `,
-  //   },
-  // });
 
   for (const node of Object.values(nodes)) {
     for (const rule of rules) {

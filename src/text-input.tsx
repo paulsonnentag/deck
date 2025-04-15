@@ -87,7 +87,6 @@ export const TextInput: React.FC<TextInputProps> = ({
 
   useEffect(() => {
     if (focus) {
-      console.log("focus");
       textareaRef.current?.focus();
     }
   }, [focus]);
