@@ -43,10 +43,6 @@ export const loadObjects = (
 } => {
   const objects: Record<string, Obj> = {};
 
-  const updateDoc = (callback: (doc: ObjectsDoc) => void) => {
-    docHandle.change(callback);
-  };
-
   const getObjectById = (id: string) => {
     if (objects[id]) {
       return objects[id];
@@ -59,9 +55,9 @@ export const loadObjects = (
 
     switch (props.type) {
       case "card":
-        return new Card(props, getObjectById, updateDoc) as Obj;
+        return new Card(props, getObjectById, docHandle) as Obj;
       case "field":
-        return new Field(props, getObjectById, updateDoc) as Obj;
+        return new Field(props, getObjectById, docHandle) as Obj;
 
       default:
         throw new Error(`Unknown object: ${JSON.stringify(props)}`);
@@ -75,16 +71,16 @@ export const loadObjects = (
   ): Obj<CardSchema | FieldSchema> {
     switch (props.type) {
       case "card": {
-        const card = new Card(props, getObjectById, updateDoc);
-        updateDoc((doc) => {
+        const card = new Card(props, getObjectById, docHandle);
+        docHandle.change((doc) => {
           doc.objects[card.props.id] = card.props;
         });
 
         return card;
       }
       case "field": {
-        const field = new Field(props, getObjectById, updateDoc);
-        updateDoc((doc) => {
+        const field = new Field(props, getObjectById, docHandle);
+        docHandle.change((doc) => {
           doc.objects[field.props.id] = field.props;
         });
 

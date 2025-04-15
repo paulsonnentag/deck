@@ -33,9 +33,9 @@ export class Card extends Obj<CardSchema> {
       this.children().map((child) => [child.copy().props.id, true])
     );
 
-    const newCard = new Card(copiedProps, this.getObjectById, this.updateDoc);
+    const newCard = new Card(copiedProps, this.getObjectById, this.docHandle);
 
-    this.updateDoc((doc) => {
+    this.docHandle.change((doc) => {
       doc.objects[newCard.props.id] = newCard.serialize();
     });
 
@@ -73,10 +73,16 @@ export class Card extends Obj<CardSchema> {
     onPointerMove,
     onPointerUp,
   }: ObjViewProps) {
-    const { id, width, height, x, y, fillMode, color = "black" } = this.props;
+    const id = this.get("id");
+    const width = this.get("width");
+    const height = this.get("height");
+    const x = this.get("x");
+    const y = this.get("y");
+    const fillMode = this.get("fillMode");
+    const color = this.get("color") ?? "black";
 
-    const isBeingDragged = draggedObj?.props.id === id;
-    const isSelected = selectedObj?.props.id === id;
+    const isBeingDragged = draggedObj?.get("id") === id;
+    const isSelected = selectedObj?.get("id") === id;
     const isRoot = !this.parent();
 
     const style: React.CSSProperties = {
@@ -100,9 +106,9 @@ export class Card extends Obj<CardSchema> {
           ${isSelected ? "shadow-solid" : ""}
         `}
         style={style}
-        onPointerDown={(e) => onPointerDown(e, this)}
-        onPointerMove={(e) => onPointerMove(e, this)}
-        onPointerUp={(e) => onPointerUp(e, this)}
+        onPointerDown={(e) => onPointerDown(e, this as Obj)}
+        onPointerMove={(e) => onPointerMove(e, this as Obj)}
+        onPointerUp={(e) => onPointerUp(e, this as Obj)}
       >
         {this.children().map((child) => (
           <ObjView

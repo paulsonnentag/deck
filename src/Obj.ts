@@ -1,7 +1,11 @@
+import * as Automerge from "@automerge/automerge/next";
 import { ObjectsDoc } from "./ObjectsDoc";
 import { Card, removeChild } from "./Card";
-import { uuid, view } from "@automerge/automerge";
-import { objToXML } from "./rules";
+import { Heads, uuid, view } from "@automerge/automerge";
+import { objToXML, Rule } from "./rules";
+import { DocHandle } from "@automerge/automerge-repo";
+import { Field } from "./Field";
+import { isEmpty } from "./utils";
 
 export type ObjProps<T = unknown> = {
   type: string;
@@ -12,13 +16,51 @@ export type ObjProps<T = unknown> = {
   parentId?: string;
 } & T;
 
+type OverrideValue = {
+  value: any;
+  rule: Rule;
+  isActive: boolean;
+};
+
 export abstract class Obj<T = unknown> {
   props: ObjProps<T>;
+
+  overrides: Record<string, OverrideValue[]> = {};
+  get(key: keyof ObjProps<T>) {
+    const overrides = this.overrides[key as string];
+
+    if (overrides) {
+      return overrides.find((override: OverrideValue) => override.isActive)
+        ?.value;
+    }
+
+    return this.props[key];
+  }
+
+  getAt(key: keyof ObjProps<T>, heads: Heads) {
+    const doc = Automerge.view(this.docHandle.docSync()!, heads);
+    return (doc.objects as any)[this.props.id]![key];
+  }
+
+  override(
+    key: keyof ObjProps<T>,
+    value: ObjProps<T>[keyof ObjProps<T>],
+    rule: Rule
+  ) {
+    const currentValue = this.props[key];
+    const previousValue = this.getAt(key, rule.createdAt);
+    const isActive = isEmpty(currentValue) || currentValue === previousValue;
+
+    this.overrides[key as string] = [
+      ...(this.overrides[key as string] || []),
+      { value, rule, isActive },
+    ];
+  }
 
   constructor(
     props: Omit<ObjProps<T>, "id"> & { id?: string },
     protected getObjectById: (id: string) => Obj,
-    protected updateDoc: (callback: (doc: ObjectsDoc) => void) => void
+    protected docHandle: DocHandle<ObjectsDoc>
   ) {
     if (props.id) {
       this.props = props as ObjProps<T>;
@@ -59,7 +101,7 @@ export abstract class Obj<T = unknown> {
   }
 
   update(callback: (props: ObjProps<T>) => void) {
-    this.updateDoc((doc) => {
+    this.docHandle.change((doc) => {
       const obj = doc.objects[this.props.id] as unknown as ObjProps<T>;
       if (obj) {
         callback(obj);
@@ -74,7 +116,7 @@ export abstract class Obj<T = unknown> {
       });
     }
 
-    this.updateDoc((doc) => {
+    this.docHandle.change((doc) => {
       delete doc.objects[this.props.id];
     });
   }

@@ -1,16 +1,8 @@
 import { Obj, ObjViewProps } from "./Obj";
 import { Color, colorToHex, FontSize, fontSizeToPx } from "./Inspector";
-import { generateRuleSource } from "./rules";
+import { generateRuleSource, Rule } from "./rules";
 import { TextInput } from "./text-input";
-
-type Rule =
-  | {
-      type: "pending";
-    }
-  | {
-      type: "source";
-      source: string;
-    };
+import { uuid } from "@automerge/automerge";
 
 export type FieldSchema = {
   type: "field";
@@ -37,9 +29,9 @@ export class Field extends Obj<FieldSchema> {
 
   copy(): Field {
     const copiedProps = this.copyProps();
-    const newField = new Field(copiedProps, this.getObjectById, this.updateDoc);
+    const newField = new Field(copiedProps, this.getObjectById, this.docHandle);
 
-    this.updateDoc((doc) => {
+    this.docHandle.change((doc) => {
       doc.objects[newField.props.id] = newField.props;
     });
 
@@ -53,12 +45,18 @@ export class Field extends Obj<FieldSchema> {
     onPointerMove,
     onPointerUp,
   }: ObjViewProps) {
-    const { value, color, fontSize, rule, id, x, y } = this.props;
+    const value = this.get("value");
+    const color = this.get("color") ?? "black";
+    const fontSize = this.get("fontSize") ?? "16px";
+    const rule = this.get("rule");
+    const id = this.get("id");
+    const x = this.get("x");
+    const y = this.get("y");
 
-    const isBeingDragged = draggedNode?.props.id === id;
-    const isSelected = selectedNode?.props.id === id;
+    const isBeingDragged = draggedNode?.get("id") === id;
+    const isSelected = selectedNode?.get("id") === id;
 
-    const isRulePending = rule?.type === "pending";
+    const isRulePending = rule?.definition.type === "pending";
     const hasRule = rule !== undefined;
 
     const onPrompt = async () => {
@@ -69,7 +67,11 @@ export class Field extends Obj<FieldSchema> {
 
       this.update((props) => {
         props.rule = {
-          type: "pending",
+          createdAt: this.docHandle.heads()!,
+          id: uuid(),
+          definition: {
+            type: "pending",
+          },
         };
       });
 
@@ -80,8 +82,12 @@ export class Field extends Obj<FieldSchema> {
           delete props.rule;
         } else {
           props.rule = {
-            type: "source",
-            source,
+            createdAt: this.docHandle.heads()!,
+            id: props.rule!.id,
+            definition: {
+              type: "source",
+              source,
+            },
           };
         }
       });
@@ -101,9 +107,9 @@ export class Field extends Obj<FieldSchema> {
           fontSize: fontSizeToPx(fontSize),
           color: colorToHex(color),
         }}
-        onPointerDown={(e) => onPointerDown(e, this)}
-        onPointerMove={(e) => onPointerMove(e, this)}
-        onPointerUp={(e) => onPointerUp(e, this)}
+        onPointerDown={(e) => onPointerDown(e, this as Obj)}
+        onPointerMove={(e) => onPointerMove(e, this as Obj)}
+        onPointerUp={(e) => onPointerUp(e, this as Obj)}
       >
         {
           <TextInput

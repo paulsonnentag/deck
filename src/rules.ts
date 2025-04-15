@@ -2,7 +2,21 @@ import Anthropic from "@anthropic-ai/sdk";
 import { outdent } from "outdent";
 import { Card } from "./Card";
 import { Field } from "./Field";
-import { Obj } from "./Obj";
+import { Obj, ObjProps } from "./Obj";
+import { Heads } from "@automerge/automerge";
+
+export type Rule = {
+  id: string;
+  createdAt: Heads;
+  definition:
+    | {
+        type: "pending";
+      }
+    | {
+        type: "source";
+        source: string;
+      };
+};
 
 const getGenerateRulePrompt = (explanation: string, card: Card) => {
   return outdent`
@@ -17,9 +31,11 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
     - If a card or field is copied it remembers from which object it was copied from
     - There is a single root card that contains the entire white board content
 
-    Here is the schema of the objects on the white board:
+    Here is a type definition of the white board api:
 
     \`\`\`javascript
+
+    const override = (object: Obj, key: string, value: any) => void;
 
     type Obj = {
       props: {
@@ -66,6 +82,7 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
     - The function should consider objects matching if they are a copy of the object in the example card
     - The function should also check if the object has the correct parent / sibling relationship as in the example card
     - If the object is a match the function should mutate the object to match the scenario on the example card
+    - always use the override function to mutate the object
     
     # Examples
 
@@ -96,17 +113,17 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
         return
       }
 
-      const knob = field.parent
+      const knob = field.parent()
       if (!knob || !knob.isCopyOf(exampleKnob)) {
         return
       }
 
-      const slider = knob.parent
+      const slider = knob.parent()
       if (!slider || !slider.isCopyOf(exampleSlider)) {
         return
       }
 
-      field.props.value = (knob.props.x + knob.props.width / 2) / slider.props.width * 100          
+      override(field, "value", (knob.props.x + knob.props.width / 2) / slider.props.width * 100)
     })
     \`\`\`
 
@@ -150,43 +167,65 @@ const getCode = (response: string) => {
   }
 };
 
-type Rule = (node: Obj) => void;
+type RuleFunction = (node: Obj) => void;
 
 type RuleApi = {
-  addRule: (rule: Rule) => void;
+  addRule: (rule: RuleFunction) => void;
   getNode: (id: string) => Obj;
 };
 
-const getRuleApi = (Nodes: Record<string, Obj>, rules: Rule[]) => {
-  return {
-    addRule: (rule: Rule) => {
+const getRuleApi = (Nodes: Record<string, Obj>, rules: RuleFunction[]) => {
+  return (rule: Rule) => ({
+    addRule: (rule: RuleFunction) => {
       rules.push(rule);
     },
     getNode: (id: string) => Nodes[id],
-  };
+    override: <T>(
+      object: Obj<T>,
+      key: keyof ObjProps<T>,
+      value: ObjProps<T>[keyof ObjProps<T>]
+    ) => {
+      object.override(key, value, rule);
+    },
+  });
 };
 
-const evalRule = (api: RuleApi, source: string) => {
+const evalRuleDefinition = (api: (rule: Rule) => RuleApi, rule: Rule) => {
+  if (rule.definition.type === "pending") {
+    return;
+  }
+
+  const source = rule.definition.source;
+
+  console.log(source);
+
   try {
     const fn = new Function("api", `with(api) { ${source} }`);
-    fn(api);
+    fn(api(rule));
   } catch (error) {
     console.error(error);
   }
 };
 
 export const applyRules = (nodes: Record<string, Obj>) => {
-  const rules: Rule[] = [];
+  const rules: RuleFunction[] = [];
   const api = getRuleApi(nodes, rules);
 
   for (const node of Object.values(nodes)) {
-    if (node instanceof Field && node.props.rule?.type === "source") {
-      const source = node.props.rule.source;
-
-      console.log("applyRules", source);
-      evalRule(api, source);
+    if (node instanceof Field && node.props.rule) {
+      evalRuleDefinition(api, node.props.rule);
     }
   }
+
+  // evalRuleDefinition(api, {
+  //   id: "1",
+  //   createdAt: [],
+  //   definition: {
+  //     type: "source",
+  //     source: outdent`
+  //     `,
+  //   },
+  // });
 
   for (const node of Object.values(nodes)) {
     for (const rule of rules) {

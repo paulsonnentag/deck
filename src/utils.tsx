@@ -24,3 +24,7 @@ export const shouldNeverHappen = (message: string) => {
   debugger;
   throw new Error(message);
 };
+
+export const isEmpty = (value: any): boolean => {
+  return value === undefined || value === null || value === "";
+};

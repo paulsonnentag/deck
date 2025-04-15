@@ -116,7 +116,7 @@ export const Editor = ({ documentId }: AppProps) => {
     } else if (event.code === "KeyP") {
       event.preventDefault();
       if (selectedObject) {
-        console.log(selectedObject.serialize());
+        console.log(selectedObject);
       }
 
       // switch to card tool
