@@ -2,7 +2,7 @@ import * as Automerge from "@automerge/automerge/next";
 import { ObjectsDoc } from "./ObjectsDoc";
 import { Card, removeChild } from "./Card";
 import { Heads, uuid, view } from "@automerge/automerge";
-import { objToXML, Rule } from "./rules";
+import { objToXML, Rule, RuleWithDefinition } from "./rules";
 import { DocHandle } from "@automerge/automerge-repo";
 import { Field } from "./Field";
 import { isEmpty } from "./utils";
@@ -45,11 +45,22 @@ export abstract class Obj<T = unknown> {
   override(
     key: keyof ObjProps<T>,
     value: ObjProps<T>[keyof ObjProps<T>],
-    rule: Rule
+    rule: RuleWithDefinition
   ) {
     const currentValue = this.props[key];
     const previousValue = this.getAt(key, rule.createdAt);
     const isActive = isEmpty(currentValue) || currentValue === previousValue;
+
+    // record each unsuccessful override as an exception
+    // todo: only record exceptions if the object is in the rule card
+    if (!isActive) {
+      rule.definition.exceptions.push({
+        object: this as Obj,
+        key: key as string,
+        expectedValue: currentValue,
+        computedValue: value,
+      });
+    }
 
     this.overrides[key as string] = [
       ...(this.overrides[key as string] || []),

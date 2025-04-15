@@ -59,8 +59,8 @@ export class Card extends Obj<CardSchema> {
         .join(" ")} />`;
     }
 
-    return `${indentation}<${type} ${Object.entries(attributes)
-      .map(([key, value]) => `${key}="${value}"`)
+    return `${indentation}<${type} ${Object.keys(attributes)
+      .map((key) => `${key}="${this.get(key as keyof CardSchema)}"`)
       .join(" ")}>\n${children
       .map((child) => child.toPromptXml(indentation + "  "))
       .join("\n")}\n${indentation}</${type}>`;

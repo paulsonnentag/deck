@@ -116,7 +116,12 @@ export const Editor = ({ documentId }: AppProps) => {
     } else if (event.code === "KeyP") {
       event.preventDefault();
       if (selectedObject) {
-        console.log(selectedObject);
+        console.log(
+          getGenerateRulePrompt(
+            selectedObject as Field,
+            selectedObject.parent() as Card
+          )
+        );
       }
 
       // switch to card tool

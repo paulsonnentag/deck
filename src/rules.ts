@@ -5,21 +5,32 @@ import { Field } from "./Field";
 import { Obj, ObjProps } from "./Obj";
 import { Heads } from "@automerge/automerge";
 
+type RuleException = {
+  object: Obj;
+  key: string;
+  expectedValue: any;
+  computedValue: any;
+};
+
+type RuleDefinition = {
+  source: string;
+  exceptions: RuleException[];
+};
+
 export type Rule = {
   id: string;
   createdAt: Heads;
-  definition:
-    | {
-        type: "pending";
-      }
-    | {
-        type: "source";
-        source: string;
-      };
+  definition?: RuleDefinition;
 };
 
-const getGenerateRulePrompt = (explanation: string, card: Card) => {
-  return outdent`
+export type RuleWithDefinition = Omit<Rule, "definition"> & {
+  definition: RuleDefinition;
+};
+
+export const getGenerateRulePrompt = (field: Field) => {
+  const card = field.parent()!;
+
+  let prompt = outdent`
     You are a coding assistant that helps write rules to add dynamic behavior to a white board app. 
 
     Here is how the white board works:
@@ -133,8 +144,37 @@ const getGenerateRulePrompt = (explanation: string, card: Card) => {
 
     ${card.toPromptXml()}
 
-    User explanation: "${explanation}"
+    User explanation: "${field.props.value}"
+
+
+    ${field.props.rule?.definition}
   `;
+
+  if (!field.props.rule?.definition) {
+    return prompt;
+  }
+
+  prompt += outdent`
+    The current rule is:
+
+    \`\`\`javascript
+    ${field.props.rule.definition.source}
+    \`\`\`
+
+    There are ${
+      field.props.rule.definition.exceptions.length
+    } cases where the computed values do not match the expected values.
+
+    ${field.props.rule.definition.exceptions
+      .map((exception) => {
+        return outdent`
+          - for ${exception.object.props.type} ${exception.object.props.id} the rule computes for "${exception.key}" ${exception.computedValue} but the user expects ${exception.expectedValue}
+      `;
+      })
+      .join("\n")}
+  `;
+
+  return prompt;
 };
 
 const anthropic = new Anthropic({
@@ -142,14 +182,14 @@ const anthropic = new Anthropic({
   dangerouslyAllowBrowser: true,
 });
 
-export const generateRuleSource = async (explanation: string, card: Card) => {
+export const generateRuleSource = async (field: Field) => {
   const message = await anthropic.messages.create({
     model: "claude-3-opus-20240229",
     max_tokens: 1000,
     messages: [
       {
         role: "user",
-        content: getGenerateRulePrompt(explanation, card),
+        content: getGenerateRulePrompt(field),
       },
     ],
   });
@@ -174,8 +214,11 @@ type RuleApi = {
   getNode: (id: string) => Obj;
 };
 
-const getRuleApi = (Nodes: Record<string, Obj>, rules: RuleFunction[]) => {
-  return (rule: Rule) => ({
+const getRuleApi = (
+  Nodes: Record<string, Obj>,
+  rules: RuleFunction[]
+): ((rule: RuleWithDefinition) => RuleApi) => {
+  return (rule: RuleWithDefinition) => ({
     addRule: (rule: RuleFunction) => {
       rules.push(rule);
     },
@@ -190,8 +233,11 @@ const getRuleApi = (Nodes: Record<string, Obj>, rules: RuleFunction[]) => {
   });
 };
 
-const evalRuleDefinition = (api: (rule: Rule) => RuleApi, rule: Rule) => {
-  if (rule.definition.type === "pending") {
+const evalRuleDefinition = (
+  api: (rule: RuleWithDefinition) => RuleApi,
+  rule: RuleWithDefinition
+) => {
+  if (!rule.definition) {
     return;
   }
 
@@ -213,7 +259,10 @@ export const applyRules = (nodes: Record<string, Obj>) => {
 
   for (const node of Object.values(nodes)) {
     if (node instanceof Field && node.props.rule) {
-      evalRuleDefinition(api, node.props.rule);
+      if (node.props.rule.definition) {
+        node.props.rule.definition.exceptions = [];
+        evalRuleDefinition(api, node.props.rule as RuleWithDefinition);
+      }
     }
   }
 

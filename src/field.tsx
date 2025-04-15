@@ -16,8 +16,8 @@ export class Field extends Obj<FieldSchema> {
   toPromptXml(indentation: string): string {
     const { type, ...attributes } = this.props;
 
-    return `${indentation}<${type} ${Object.entries(attributes)
-      .map(([key, value]) => `${key}="${value}"`)
+    return `${indentation}<${type} ${Object.keys(attributes)
+      .map((key) => `${key}="${this.get(key as keyof FieldSchema)}"`)
       .join(" ")} />`;
   }
 
@@ -56,7 +56,7 @@ export class Field extends Obj<FieldSchema> {
     const isBeingDragged = draggedNode?.get("id") === id;
     const isSelected = selectedNode?.get("id") === id;
 
-    const isRulePending = rule?.definition.type === "pending";
+    const isRulePending = rule && !rule.definition;
     const hasRule = rule !== undefined;
 
     const onPrompt = async () => {
@@ -69,13 +69,10 @@ export class Field extends Obj<FieldSchema> {
         props.rule = {
           createdAt: this.docHandle.heads()!,
           id: uuid(),
-          definition: {
-            type: "pending",
-          },
         };
       });
 
-      const source = await generateRuleSource(value, this.parent()!);
+      const source = await generateRuleSource(this);
 
       this.update((props) => {
         if (!source) {
@@ -85,7 +82,7 @@ export class Field extends Obj<FieldSchema> {
             createdAt: this.docHandle.heads()!,
             id: props.rule!.id,
             definition: {
-              type: "source",
+              exceptions: [],
               source,
             },
           };
@@ -111,32 +108,35 @@ export class Field extends Obj<FieldSchema> {
         onPointerMove={(e) => onPointerMove(e, this as Obj)}
         onPointerUp={(e) => onPointerUp(e, this as Obj)}
       >
-        {
-          <TextInput
-            focus={isSelected}
-            className="outline-none"
-            value={value}
-            onChange={(value) =>
-              this.update((props) => {
-                props.value = value;
-                delete props.rule;
-              })
+        <TextInput
+          focus={isSelected}
+          className="outline-none"
+          value={value}
+          onChange={(value) =>
+            this.update((props) => {
+              props.value = value;
+              delete props.rule;
+            })
+          }
+          onKeyDown={async (e) => {
+            e.stopPropagation();
+            if (e.key === "Backspace") {
+              if (value.length === 0) {
+                this.destroy();
+              }
             }
-            onKeyDown={async (e) => {
-              e.stopPropagation();
-              if (e.key === "Backspace") {
-                if (value.length === 0) {
-                  this.destroy();
-                }
-              }
 
-              if (e.key === "Enter" && e.metaKey) {
-                e.preventDefault();
-                onPrompt();
-              }
-            }}
-          />
-        }
+            if (e.key === "Enter" && e.metaKey) {
+              e.preventDefault();
+              onPrompt();
+            }
+          }}
+        />
+        {hasRule && !isRulePending && (
+          <div className="text-xs text-gray-500">
+            {rule.definition.exceptions.length} exceptions
+          </div>
+        )}
       </div>
     );
   }
