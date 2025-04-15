@@ -39,7 +39,8 @@ export abstract class Obj<T = unknown> {
 
   getAt(key: keyof ObjProps<T>, heads: Heads) {
     const doc = Automerge.view(this.docHandle.docSync()!, heads);
-    return (doc.objects as any)[this.props.id]![key];
+    const obj = (doc.objects as any)[this.props.id];
+    return obj ? obj[key] : undefined;
   }
 
   override(
@@ -49,7 +50,10 @@ export abstract class Obj<T = unknown> {
   ) {
     const currentValue = this.props[key];
     const previousValue = this.getAt(key, rule.createdAt);
-    const isActive = isEmpty(currentValue) || currentValue === previousValue;
+    const isActive =
+      isEmpty(currentValue) ||
+      currentValue === previousValue ||
+      previousValue === undefined;
 
     // record each unsuccessful override as an exception
     // todo: only record exceptions if the object is in the rule card
