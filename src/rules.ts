@@ -154,25 +154,25 @@ export const getGenerateRulePrompt = (field: Field) => {
     return prompt;
   }
 
-  prompt += outdent`
-    The current rule is:
+  // prompt += outdent`
+  //   The current rule is:
 
-    \`\`\`javascript
-    ${field.props.rule.definition.source}
-    \`\`\`
+  //   \`\`\`javascript
+  //   ${field.props.rule.definition.source}
+  //   \`\`\`
 
-    There are ${
-      field.props.rule.definition.exceptions.length
-    } cases where the computed values do not match the expected values.
+  //   There are ${
+  //     field.props.rule.definition.exceptions.length
+  //   } cases where the computed values do not match the expected values.
 
-    ${field.props.rule.definition.exceptions
-      .map((exception) => {
-        return outdent`
-          - for ${exception.object.props.type} ${exception.object.props.id} the rule computes for "${exception.key}" ${exception.computedValue} but the user expects ${exception.expectedValue}
-      `;
-      })
-      .join("\n")}
-  `;
+  //   ${field.props.rule.definition.exceptions
+  //     .map((exception) => {
+  //       return outdent`
+  //         - for ${exception.object.props.type} ${exception.object.props.id} the rule computes for "${exception.key}" ${exception.computedValue} but the user expects ${exception.expectedValue}
+  //     `;
+  //     })
+  //     .join("\n")}
+  // `;
 
   return prompt;
 };
