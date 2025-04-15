@@ -334,12 +334,15 @@ export const Editor = ({ documentId }: AppProps) => {
           }
           // Handle dragging
           else {
-            if (activeNode.parent() !== node) {
+            const draggedOverCard =
+              node instanceof Card ? node : node.parent()!;
+
+            if (activeNode.parent() !== draggedOverCard) {
               activeNode.parent()!.update((parent) => {
                 delete parent.childIds[activeNode.props.id];
               });
 
-              (node as Card).update((card) => {
+              draggedOverCard.update((card) => {
                 card.childIds[activeNode.props.id] = true;
               });
 
@@ -354,7 +357,7 @@ export const Editor = ({ documentId }: AppProps) => {
               });
             }
 
-            const offset = node.globalPos();
+            const offset = draggedOverCard.globalPos();
 
             activeNode.update((node) => {
               node.x = Math.round(
