@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
+import { useStaticCallback } from "./hooks";
 
 interface TextInputProps {
   value: string;
@@ -17,24 +18,23 @@ export const TextInput: React.FC<TextInputProps> = ({
   onKeyDown,
   focus,
 }) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const measureRef = useRef<HTMLDivElement>(null);
+  const [measureDiv, setMeasureDiv] = useState<HTMLDivElement | null>(null);
+  const [textareaElement, setTextareaElement] =
+    useState<HTMLTextAreaElement | null>(null);
 
   // Function to adjust the dimensions of the textarea
-  const adjustDimensions = () => {
-    const textarea = textareaRef.current;
-    const measureDiv = measureRef.current;
-    if (!textarea || !measureDiv) return;
+  const adjustDimensions = useStaticCallback(() => {
+    if (!textareaElement || !measureDiv) return;
 
     // Handle content for measurement, adding zero-width space for trailing newlines
-    let content = textarea.value || textarea.placeholder || "";
+    let content = textareaElement.value || textareaElement.placeholder || "";
     if (content.endsWith("\n")) {
       content += "\u200B"; // Append zero-width space
     }
     measureDiv.textContent = content;
 
     // Get the computed style of the textarea
-    const computedStyle = window.getComputedStyle(textarea);
+    const computedStyle = window.getComputedStyle(textareaElement);
 
     // Copy all relevant styles to the measure div
     const stylesToCopy = [
@@ -67,29 +67,32 @@ export const TextInput: React.FC<TextInputProps> = ({
     measureDiv.style.width = "auto";
 
     // Reset textarea dimensions
-    textarea.style.height = "auto";
-    textarea.style.width = "auto";
+    textareaElement.style.height = "auto";
+    textareaElement.style.width = "auto";
 
     // Set textarea dimensions to match the measure div exactly
     const measureRect = measureDiv.getBoundingClientRect();
-    textarea.style.height = `${measureRect.height}px`;
-    textarea.style.width = `${measureRect.width}px`;
+    textareaElement.style.height = `${measureRect.height}px`;
+    textareaElement.style.width = `${measureRect.width}px`;
 
     // Ensure textarea has the same padding and border
-    textarea.style.padding = computedStyle.padding;
-    textarea.style.border = computedStyle.border;
-  };
+    textareaElement.style.padding = computedStyle.padding;
+    textareaElement.style.border = computedStyle.border;
+  });
 
   // Adjust dimensions when value changes
   useEffect(() => {
+    console.log("adjusting dimensions");
     adjustDimensions();
-  }, [value]);
+  }, [value, className, measureDiv, adjustDimensions]);
 
   useEffect(() => {
     if (focus) {
-      textareaRef.current?.focus();
+      setTimeout(() => {
+        textareaElement?.focus();
+      }, 100);
     }
-  }, [focus]);
+  }, [focus, textareaElement]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
@@ -98,17 +101,15 @@ export const TextInput: React.FC<TextInputProps> = ({
 
   return (
     <div style={{ position: "relative" }}>
-      <div ref={measureRef} />
+      <div ref={setMeasureDiv} />
       <textarea
-        ref={textareaRef}
+        ref={setTextareaElement}
         value={value}
         onKeyDown={onKeyDown}
         onChange={handleChange}
         placeholder={placeholder}
         className={`resize-none overflow-hidden ${className}`}
         style={{
-          minHeight: "1.5em",
-          minWidth: "2em",
           boxSizing: "border-box",
           verticalAlign: "top",
         }}

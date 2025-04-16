@@ -295,7 +295,7 @@ export const Editor = ({ documentId }: AppProps) => {
                 handle === "top-right" ||
                 handle === "bottom-right"
               ) {
-                node.width = Math.max(10, Math.round(event.clientX - offset.x));
+                node.width = Math.max(20, Math.round(event.clientX - offset.x));
               }
               if (
                 handle === "bottom" ||
@@ -303,7 +303,7 @@ export const Editor = ({ documentId }: AppProps) => {
                 handle === "bottom-right"
               ) {
                 node.height = Math.max(
-                  10,
+                  20,
                   Math.round(event.clientY - offset.y)
                 );
               }
@@ -313,7 +313,7 @@ export const Editor = ({ documentId }: AppProps) => {
                 handle === "bottom-left"
               ) {
                 const newWidth = Math.max(
-                  10,
+                  20,
                   width - Math.round(event.clientX - offset.x)
                 );
                 node.x += width - newWidth;
@@ -325,7 +325,7 @@ export const Editor = ({ documentId }: AppProps) => {
                 handle === "top-right"
               ) {
                 const newHeight = Math.max(
-                  10,
+                  20,
                   height - Math.round(event.clientY - offset.y)
                 );
                 node.y += height - newHeight;
@@ -384,6 +384,17 @@ export const Editor = ({ documentId }: AppProps) => {
       switch (tool.type) {
         case "card": {
           if (tool.state?.activeCardId) {
+            const activeCard = getObjectById(tool.state.activeCardId) as Card;
+
+            if (activeCard.props.width < 50 || activeCard.props.height < 50) {
+              activeCard.update((card) => {
+                card.width = 50;
+                card.height = 50;
+                card.x = card.x - 25;
+                card.y = card.y - 25;
+              });
+            }
+
             setTool({
               type: "pointer",
               state: {
