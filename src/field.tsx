@@ -1,42 +1,18 @@
-import * as Automerge from "@automerge/automerge";
-import { Obj, ObjViewProps } from "./Obj";
-import { Color, colorToHex, FontSize, fontSizeToPx } from "./Inspector";
-import { generateRuleSource, Rule } from "./rules";
-import { TextInput } from "./text-input";
 import { uuid } from "@automerge/automerge";
+import { BaseProps, create, ObjViewProps, PersistedObject } from "./Obj";
+import { Color, colorToHex, FontSize, fontSizeToPx } from "./Inspector";
+import { TextInput } from "./text-input";
 
-export type FieldSchema = {
+export type FieldProps = BaseProps & {
   type: "field";
   value: string;
   color?: Color;
   fontSize?: FontSize;
-  rule?: Rule;
 };
 
-export class Field extends Obj<FieldSchema> {
-  toPromptXml(indentation: string): string {
-    const { type, ...attributes } = this.props;
-
-    return `${indentation}<${type} ${Object.keys(attributes)
-      .map((key) => `${key}="${this.get(key as keyof FieldSchema)}"`)
-      .join(" ")} />`;
-  }
-
-  encodeForPrompt(indentation: string): string {
-    return `${indentation}<${this.props.type} ${Object.entries(this.props)
-      .map(([key, value]) => `${key}="${value}"`)
-      .join(" ")} />`;
-  }
-
+export class Field extends PersistedObject<FieldProps> {
   copy(): Field {
-    const copiedProps = this.copyProps();
-    const newField = new Field(copiedProps, this.getObjectById, this.docHandle);
-
-    this.docHandle.change((doc) => {
-      doc.objects[newField.props.id] = newField.props;
-    });
-
-    return newField;
+    return create<Field, FieldProps>(Field, { ...this.props, id: uuid() });
   }
 
   view({
@@ -46,56 +22,19 @@ export class Field extends Obj<FieldSchema> {
     onPointerMove,
     onPointerUp,
   }: ObjViewProps) {
-    const value = this.get("value");
-    const color = this.get("color") ?? "black";
-    const fontSize = this.get("fontSize") ?? "16px";
-    const rule = this.get("rule");
-    const id = this.get("id");
-    const x = this.get("x");
-    const y = this.get("y");
+    const value = this.props.value;
+    const color = this.props.color ?? "black";
+    const fontSize = this.props.fontSize ?? "s";
+    const id = this.props.id;
+    const x = this.props.x;
+    const y = this.props.y;
 
-    const isBeingDragged = draggedNode?.get("id") === id;
-    const isSelected = selectedNode?.get("id") === id;
-
-    const isRulePending = rule && !rule.definition;
-    const hasRule = rule !== undefined;
-
-    const onPrompt = async () => {
-      // don't allow explanations in root node
-      if (!this.parent()!.parent()) {
-        return;
-      }
-
-      this.update((props) => {
-        props.rule = {
-          createdAt: this.docHandle.heads()!,
-          id: uuid(),
-        };
-      });
-
-      const source = await generateRuleSource(this);
-
-      this.update((props) => {
-        if (!source) {
-          delete props.rule;
-        } else {
-          props.rule = {
-            createdAt: this.docHandle.heads()!,
-            id: props.rule!.id,
-            definition: {
-              exceptions: [],
-              source,
-            },
-          };
-        }
-      });
-    };
+    const isBeingDragged = draggedNode?.props.id === id;
+    const isSelected = selectedNode?.props.id === id;
 
     return (
       <div
-        className={`px-1 border          
-          ${hasRule ? "bg-gray-200" : ""}
-          ${isRulePending ? "animate-pulse bg-gray-200" : ""}
+        className={`px-1 border
           ${isSelected ? "border-blue-500" : "border-transparent"}
           ${isBeingDragged ? "pointer-events-none" : ""}
         `}
@@ -105,9 +44,9 @@ export class Field extends Obj<FieldSchema> {
           fontSize: fontSizeToPx(fontSize),
           color: colorToHex(color),
         }}
-        onPointerDown={(e) => onPointerDown(e, this as Obj)}
-        onPointerMove={(e) => onPointerMove(e, this as Obj)}
-        onPointerUp={(e) => onPointerUp(e, this as Obj)}
+        onPointerDown={(e) => onPointerDown(e, this)}
+        onPointerMove={(e) => onPointerMove(e, this)}
+        onPointerUp={(e) => onPointerUp(e, this)}
       >
         <TextInput
           focus={isSelected}
@@ -116,7 +55,6 @@ export class Field extends Obj<FieldSchema> {
           onChange={(value) =>
             this.update((props) => {
               props.value = value;
-              delete props.rule;
             })
           }
           onKeyDown={async (e) => {
@@ -126,18 +64,8 @@ export class Field extends Obj<FieldSchema> {
                 this.destroy();
               }
             }
-
-            if (e.key === "Enter" && e.metaKey) {
-              e.preventDefault();
-              onPrompt();
-            }
           }}
         />
-        {hasRule && !isRulePending && (
-          <div className="text-xs text-gray-500">
-            {rule.definition.exceptions.length} exceptions
-          </div>
-        )}
       </div>
     );
   }

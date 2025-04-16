@@ -1,17 +1,16 @@
 import { DocumentId } from "@automerge/automerge-repo";
 
-import { useEffect, useMemo, useState, PointerEvent } from "react";
 import { useDocument } from "@automerge/automerge-repo-react-hooks";
 import * as Automerge from "@automerge/automerge/next";
-import { Obj, ObjView } from "./Obj";
-import { addChild, Card } from "./Card";
+import { PointerEvent, useEffect, useMemo, useState } from "react";
+import { addChild, Card, CardProps } from "./Card";
 import { useStaticCallback } from "./hooks";
-import { Field } from "./Field";
 import { Inspector, useInspectorState } from "./Inspector";
-import { SwallopPointerEvents } from "./utils";
+import { create, getObjectById, Obj, ObjView, useRootObject } from "./Obj";
+import { SwallowPointerEvents } from "./utils";
 import { ObjectsDoc } from "./ObjectsDoc";
-import { useObjects } from "./ObjectsDoc";
 import { uuid } from "@automerge/automerge";
+import { Field, FieldProps } from "./Field";
 
 const DEBUG_MODE = true;
 
@@ -78,14 +77,9 @@ type AppProps = {
 };
 
 export const Editor = ({ documentId }: AppProps) => {
-  const { objects, createObject } = useObjects(documentId);
+  const rootCard = useRootObject();
   const [objectsDoc] = useDocument<ObjectsDoc>(documentId);
   const [tool, setTool] = useState<ToolState>({ type: "pointer" });
-  const rootNode = objectsDoc ? objects[objectsDoc.rootObjectId] : undefined;
-
-  useEffect(() => {
-    (window as any).$objects = objects;
-  }, [objects]);
 
   const [clipboard, setClipboard] = useState<Obj | null>(null);
   const stats = useMemo(() => {
@@ -96,15 +90,15 @@ export const Editor = ({ documentId }: AppProps) => {
 
   const selectedObject = useMemo(() => {
     if (tool.type === "pointer" && tool.state?.activeNodeId) {
-      return objects?.[tool.state.activeNodeId];
+      return getObjectById(tool.state.activeNodeId);
     }
-  }, [objects, tool]);
+  }, [tool]);
 
   const draggedObject = useMemo(() => {
     if (tool.type === "pointer" && tool.state?.dragState) {
-      return objects?.[tool.state.activeNodeId];
+      return getObjectById(tool.state.activeNodeId);
     }
-  }, [objects, tool]);
+  }, [tool]);
 
   const [inspectorState, setInspectorState] = useInspectorState({
     tool,
@@ -114,13 +108,13 @@ export const Editor = ({ documentId }: AppProps) => {
   const onKeyDown = useStaticCallback((event: KeyboardEvent) => {
     // copy card
     if (event.code === "KeyC" && (event.ctrlKey || event.metaKey)) {
-      if (selectedObject && selectedObject !== rootNode) {
+      if (selectedObject && selectedObject !== rootCard) {
         setClipboard(selectedObject);
       }
 
       // cut card
     } else if (event.code === "KeyX" && (event.ctrlKey || event.metaKey)) {
-      if (selectedObject && selectedObject !== rootNode) {
+      if (selectedObject && selectedObject !== rootCard) {
         setClipboard(selectedObject);
         selectedObject.destroy();
       }
@@ -173,7 +167,7 @@ export const Editor = ({ documentId }: AppProps) => {
 
   const onPointerDown = useStaticCallback(
     (event: PointerEvent<HTMLDivElement>, node: Obj, handle?: Handle) => {
-      if (event.isPrimary === false || !rootNode) return;
+      if (event.isPrimary === false || !rootCard) return;
 
       event.stopPropagation();
 
@@ -182,15 +176,15 @@ export const Editor = ({ documentId }: AppProps) => {
           const parentCard: Card = node instanceof Card ? node : node.parent()!;
           const offset = parentCard.globalPos();
 
-          const newCard = createObject({
-            id: uuid(),
+          const newCard = create(Card, {
             type: "card",
             width: 0,
             height: 0,
+            fillMode: "solid",
+            childIds: {},
             x: Math.round(event.clientX - offset.x),
             y: Math.round(event.clientY - offset.y),
-            childIds: {},
-          });
+          } as CardProps);
 
           parentCard.update((card) => {
             addChild(card, newCard);
@@ -226,7 +220,7 @@ export const Editor = ({ documentId }: AppProps) => {
           const parentCard: Card = node instanceof Card ? node : node.parent()!;
           const offset = parentCard.globalPos();
 
-          const newField = createObject({
+          const newField = create<Field, FieldProps>(Field, {
             id: uuid(),
             type: "field",
             x: Math.round(event.clientX - offset.x),
@@ -252,16 +246,19 @@ export const Editor = ({ documentId }: AppProps) => {
 
   const onPointerMove = useStaticCallback(
     (event: PointerEvent<HTMLDivElement>, node: Obj) => {
-      if (event.isPrimary === false || !objects) return;
+      if (event.isPrimary === false) return;
 
       event.stopPropagation();
 
       switch (tool.type) {
         case "card": {
           const activeCard = tool.state?.activeCardId
-            ? (objects[tool.state.activeCardId] as Card)
+            ? (getObjectById(tool.state.activeCardId) as Card)
             : undefined;
-          if (!activeCard) break;
+          if (!activeCard) {
+            console.log("no active card");
+            break;
+          }
 
           const offset = activeCard.globalPos();
 
@@ -273,22 +270,25 @@ export const Editor = ({ documentId }: AppProps) => {
         }
 
         case "pointer": {
-          const activeNode = tool.state?.activeNodeId
-            ? objects[tool.state.activeNodeId]
+          const activeObject = tool.state?.activeNodeId
+            ? getObjectById(tool.state.activeNodeId)
             : undefined;
 
           const dragState = tool.state?.dragState;
-          if (!activeNode || !dragState || activeNode.parent() === null) break;
+
+          if (!activeObject || !dragState || activeObject.parent() === null) {
+            break;
+          }
 
           const handle = dragState.handle;
 
           // Handle resize if handle is set and we're manipulating a card
-          if (handle && activeNode instanceof Card) {
-            const offset = activeNode.globalPos();
-            const width = activeNode.get("width") as number;
-            const height = activeNode.get("height") as number;
+          if (handle && activeObject instanceof Card) {
+            const offset = activeObject.globalPos();
+            const width = activeObject.props.width;
+            const height = activeObject.props.height;
 
-            activeNode.update((node) => {
+            activeObject.update((node) => {
               if (
                 handle === "right" ||
                 handle === "top-right" ||
@@ -337,17 +337,17 @@ export const Editor = ({ documentId }: AppProps) => {
             const draggedOverCard =
               node instanceof Card ? node : node.parent()!;
 
-            if (activeNode.parent() !== draggedOverCard) {
-              activeNode.parent()!.update((parent) => {
-                delete parent.childIds[activeNode.props.id];
+            if (activeObject.parent() !== draggedOverCard) {
+              activeObject.parent()!.update((parent) => {
+                delete parent.childIds[activeObject.props.id];
               });
 
               draggedOverCard.update((card) => {
-                card.childIds[activeNode.props.id] = true;
+                card.childIds[activeObject.props.id] = true;
               });
 
               const offset = node.globalPos();
-              activeNode.update((node) => {
+              activeObject.update((node) => {
                 node.x = Math.round(
                   event.clientX - offset.x - dragState.offset.x
                 );
@@ -359,7 +359,7 @@ export const Editor = ({ documentId }: AppProps) => {
 
             const offset = draggedOverCard.globalPos();
 
-            activeNode.update((node) => {
+            activeObject.update((node) => {
               node.x = Math.round(
                 event.clientX - offset.x - dragState.offset.x
               );
@@ -427,9 +427,9 @@ export const Editor = ({ documentId }: AppProps) => {
             : ""
         }`}
     >
-      {rootNode && (
+      {rootCard && (
         <ObjView
-          obj={rootNode}
+          obj={rootCard}
           draggedNode={draggedObject}
           selectedNode={selectedObject}
           onPointerDown={onPointerDown}
@@ -440,9 +440,9 @@ export const Editor = ({ documentId }: AppProps) => {
 
       <div className="absolute top-0 bottom-0 flex flex-col items-center justify-center right-4 pointer-events-none">
         <div className="pointer-events-auto">
-          <SwallopPointerEvents>
+          <SwallowPointerEvents>
             <Inspector state={inspectorState} setState={setInspectorState} />
-          </SwallopPointerEvents>
+          </SwallowPointerEvents>
         </div>
       </div>
 

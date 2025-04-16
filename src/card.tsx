@@ -1,78 +1,48 @@
-import { ObjView, Obj, ObjViewProps, ObjProps } from "./Obj";
+import { colorToHex } from "./Inspector";
+import { Color, colorToBackgroundColorHex } from "./Inspector";
 import {
-  FillMode,
-  colorToHex,
-  Color,
-  colorToBackgroundColorHex,
-} from "./Inspector";
-import { Field } from "./Field";
+  BaseProps,
+  Obj,
+  ObjView,
+  ObjViewProps,
+  PersistedObject,
+  create,
+  getObjectById,
+} from "./Obj";
 
-export type CardSchema = {
+export type CardProps = BaseProps & {
   type: "card";
-  width: number | "100%";
-  height: number | "100%";
-  childIds: Record<string, boolean>;
+  width: number;
+  height: number;
+  fillMode: "solid" | "none";
   color?: Color;
-  fillMode?: FillMode;
+  childIds: Record<string, true>;
 };
 
-const DEBUG_COLOR = "";
-
-export class Card extends Obj<CardSchema> {
+export class Card extends PersistedObject<CardProps> {
   destroy() {
-    const { childIds } = this.props;
-
-    Object.keys(childIds).forEach((childId) => {
-      const child = this.getObjectById(childId);
+    this.children().forEach((child) => {
       child.destroy();
     });
 
     super.destroy();
   }
 
-  copy(): Card {
-    const copiedProps = this.copyProps();
-    copiedProps.childIds = Object.fromEntries(
-      this.children().map((child) => [child.copy().props.id, true])
-    );
-
-    const newCard = new Card(copiedProps, this.getObjectById, this.docHandle);
-
-    this.docHandle.change((doc) => {
-      doc.objects[newCard.props.id] = newCard.serialize();
-    });
-
-    return newCard;
-  }
   children() {
     return Object.keys(this.props.childIds).map((id) => {
-      const child = this.getObjectById(id);
-      child.props.parentId = this.props.id;
+      const child = getObjectById(id)!;
+      child.parentId = this.props.id;
       return child;
     });
   }
 
-  toPromptXml(indentation: string = ""): string {
-    const { type, childIds, ...attributes } = this.props;
-    const children = this.children();
-
-    if (children.length === 0) {
-      return `${indentation}<${type} ${Object.entries(attributes)
-        .map(([key, value]) => `${key}="${value}"`)
-        .join(" ")} />`;
-    }
-
-    return `${indentation}<${type} ${Object.keys(attributes)
-      .map((key) => `${key}="${this.get(key as keyof CardSchema)}"`)
-      .join(" ")}>\n${children
-      .flatMap((child) => {
-        if (child instanceof Field && child.get("rule")) {
-          return [];
-        }
-
-        return child.toPromptXml(indentation + "  ");
-      })
-      .join("\n")}\n${indentation}</${type}>`;
+  copy(): Card {
+    return create(Card, {
+      ...this.props,
+      childIds: Object.fromEntries(
+        this.children().map((child) => [child.copy().props.id, true])
+      ),
+    });
   }
 
   view({
@@ -82,22 +52,22 @@ export class Card extends Obj<CardSchema> {
     onPointerMove,
     onPointerUp,
   }: ObjViewProps) {
-    const id = this.get("id");
-    const width = this.get("width");
-    const height = this.get("height");
-    const x = this.get("x");
-    const y = this.get("y");
-    const fillMode = this.get("fillMode");
-    const color = this.get("color") ?? "black";
+    const id = this.props.id;
+    const width = this.props.width;
+    const height = this.props.height;
+    const x = this.props.x;
+    const y = this.props.y;
+    const fillMode = this.props.fillMode;
+    const color = this.props.color ?? "black";
 
-    const isBeingDragged = draggedObj?.get("id") === id;
-    const isSelected = selectedObj?.get("id") === id;
+    const isBeingDragged = draggedObj?.props.id === id;
+    const isSelected = selectedObj?.props.id === id;
     const isRoot = !this.parent();
 
     const style: React.CSSProperties = {
       position: "absolute",
-      width: width === "100%" ? "100%" : `${width}px`,
-      height: height === "100%" ? "100%" : `${height}px`,
+      width: isRoot ? "100%" : `${width}px`,
+      height: isRoot ? "100%" : `${height}px`,
       transform: `translate(${x}px, ${y}px)`,
     };
 
@@ -110,10 +80,10 @@ export class Card extends Obj<CardSchema> {
     return (
       <div
         className={`
-          ${isRoot ? "bg-gray-100" : "bg-white rounded-md border-2"}
-          ${isBeingDragged && !isRoot ? "pointer-events-none" : ""} 
-          ${isSelected ? "shadow-solid" : ""}
-        `}
+            ${isRoot ? "bg-gray-100" : "bg-white rounded-md border-2"}
+            ${isBeingDragged && !isRoot ? "pointer-events-none" : ""} 
+            ${isSelected ? "shadow-solid" : ""}
+          `}
         style={style}
         onPointerDown={(e) => onPointerDown(e, this as Obj)}
         onPointerMove={(e) => onPointerMove(e, this as Obj)}
@@ -131,42 +101,44 @@ export class Card extends Obj<CardSchema> {
           />
         ))}
 
+        {this.parentId}
+
         {!isRoot && (
           <>
             <div
-              className={`absolute top-[-5px] h-[10px] cursor-ns-resize left-[5px] right-[5px] ${DEBUG_COLOR}`}
+              className={`absolute top-[-5px] h-[10px] cursor-ns-resize left-[5px] right-[5px]`}
               onPointerDown={(e) => onPointerDown(e, this as Obj, "top")}
             />
             <div
-              className={`absolute left-[-5px] w-[10px] cursor-ew-resize top-[5px] bottom-[5px] ${DEBUG_COLOR}`}
+              className={`absolute left-[-5px] w-[10px] cursor-ew-resize top-[5px] bottom-[5px]`}
               onPointerDown={(e) => onPointerDown(e, this as Obj, "left")}
             />
             <div
-              className={`absolute right-[-5px] w-[10px] cursor-ew-resize top-[5px] bottom-[5px] ${DEBUG_COLOR}`}
+              className={`absolute right-[-5px] w-[10px] cursor-ew-resize top-[5px] bottom-[5px]`}
               onPointerDown={(e) => onPointerDown(e, this as Obj, "right")}
             />
             <div
-              className={`absolute bottom-[-5px] h-[10px] cursor-ns-resize left-[5px] right-[5px] ${DEBUG_COLOR}`}
+              className={`absolute bottom-[-5px] h-[10px] cursor-ns-resize left-[5px] right-[5px]`}
               onPointerDown={(e) => onPointerDown(e, this as Obj, "bottom")}
             />
             <div
-              className={`absolute top-[-5px] left-[-5px] w-[10px] h-[10px] cursor-nwse-resize ${DEBUG_COLOR}`}
+              className={`absolute top-[-5px] left-[-5px] w-[10px] h-[10px] cursor-nwse-resize`}
               onPointerDown={(e) => onPointerDown(e, this as Obj, "top-left")}
             />
             <div
-              className={`absolute top-[-5px] right-[-5px] w-[10px] h-[10px] cursor-nesw-resize ${DEBUG_COLOR}`}
+              className={`absolute top-[-5px] right-[-5px] w-[10px] h-[10px] cursor-nesw-resize`}
               onPointerDown={(e) => onPointerDown(e, this as Obj, "top-right")}
             />
 
             <div
-              className={`absolute bottom-[-5px] left-[-5px] w-[10px] h-[10px] cursor-nesw-resize ${DEBUG_COLOR}`}
+              className={`absolute bottom-[-5px] left-[-5px] w-[10px] h-[10px] cursor-nesw-resize`}
               onPointerDown={(e) =>
                 onPointerDown(e, this as Obj, "bottom-left")
               }
             />
 
             <div
-              className={`absolute bottom-[-5px] right-[-5px] w-[10px] h-[10px] cursor-nwse-resize ${DEBUG_COLOR}`}
+              className={`absolute bottom-[-5px] right-[-5px] w-[10px] h-[10px] cursor-nwse-resize`}
               onPointerDown={(e) =>
                 onPointerDown(e, this as Obj, "bottom-right")
               }
@@ -178,13 +150,10 @@ export class Card extends Obj<CardSchema> {
   }
 }
 
-export const addChild = (card: ObjProps<CardSchema>, child: Obj<unknown>) => {
+export const addChild = (card: CardProps, child: Obj) => {
   card.childIds[child.props.id] = true;
 };
 
-export const removeChild = (
-  card: ObjProps<CardSchema>,
-  child: Obj<unknown>
-) => {
+export const removeChild = (card: CardProps, child: Obj) => {
   delete card.childIds[child.props.id];
 };

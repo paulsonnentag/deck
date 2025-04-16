@@ -5,7 +5,7 @@ import { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-index
 import { DocumentId, Repo } from "@automerge/automerge-repo";
 import { RepoContext } from "@automerge/automerge-repo-react-hooks";
 import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";
-import { createObjectsDoc } from "./ObjectsDoc";
+import { createObjectDoc, ObjectDoc, registerObjectsDocHandle } from "./Obj";
 
 const repo = new Repo({
   network: [new BrowserWebSocketClientAdapter("wss://sync.automerge.org")],
@@ -16,14 +16,19 @@ const repo = new Repo({
 let documentId = window.location.hash.slice(1) as DocumentId;
 
 if (!documentId) {
-  const handle = createObjectsDoc(repo);
+  const handle = createObjectDoc(repo);
+  registerObjectsDocHandle(handle);
   documentId = handle.documentId;
+
+  (window as any).docHandle = handle;
 
   // Update URL with the new document ID
   window.location.hash = documentId;
+} else {
+  const handle = repo.find<ObjectDoc>(documentId);
+  (window as any).docHandle = handle;
+  registerObjectsDocHandle(handle);
 }
-
-(window as any).$handle = repo.find(documentId);
 
 const root = createRoot(document.getElementById("root")!);
 root.render(

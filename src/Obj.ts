@@ -1,169 +1,156 @@
-import * as Automerge from "@automerge/automerge/next";
-import { ObjectsDoc } from "./ObjectsDoc";
-import { Card, removeChild } from "./Card";
-import { Heads, uuid, view } from "@automerge/automerge";
-import { objToXML, Rule, RuleWithDefinition } from "./rules";
-import { DocHandle } from "@automerge/automerge-repo";
-import { Field } from "./Field";
-import { isEmpty } from "./utils";
+import { DocHandle, Repo } from "@automerge/automerge-repo";
+import { shouldNeverHappen } from "./utils";
+import { Card, CardProps } from "./Card";
+import { uuid } from "@automerge/automerge";
+import { Field, FieldProps } from "./Field";
+import { useDocument } from "@automerge/automerge-repo-react-hooks";
+import { useMemo } from "react";
 
-export type ObjProps<T = unknown> = {
-  type: string;
+export type BaseProps = {
   id: string;
-  copyOf?: string;
   x: number;
   y: number;
-  parentId?: string;
-} & T;
-
-type OverrideValue = {
-  value: any;
-  rule: Rule;
-  isActive: boolean;
 };
 
-export abstract class Obj<T = unknown> {
-  props: ObjProps<T>;
+export type ObjectDoc = {
+  rootObjectId: string;
+  objects: Record<string, ObjProps>;
+};
 
-  overrides: Record<string, OverrideValue[]> = {};
+export type ObjProps = CardProps | FieldProps;
 
-  get(key: keyof ObjProps<T>) {
-    const overrides = this.overrides[key as string] ?? [];
+export type Obj = Card | Field;
 
-    const override = overrides.find(
-      (override: OverrideValue) => override.isActive
-    )?.value;
+export abstract class PersistedObject<T extends ObjProps> {
+  parentId?: string;
 
-    return override ?? this.props[key];
-  }
-
-  getAt(key: keyof ObjProps<T>, heads: Heads) {
-    const doc = Automerge.view(this.docHandle.docSync()!, heads);
-    const obj = (doc.objects as any)[this.props.id];
-    return obj ? obj[key] : undefined;
-  }
-
-  override(
-    key: keyof ObjProps<T>,
-    value: ObjProps<T>[keyof ObjProps<T>],
-    rule: RuleWithDefinition
-  ) {
-    const currentValue = this.props[key];
-    const previousValue = this.getAt(key, rule.createdAt);
-    const isActive =
-      isEmpty(currentValue) ||
-      currentValue === previousValue ||
-      previousValue === undefined;
-
-    // record each unsuccessful override as an exception
-    // todo: only record exceptions if the object is in the rule card
-    if (!isActive) {
-      rule.definition.exceptions.push({
-        object: this as Obj,
-        key: key as string,
-        expectedValue: currentValue,
-        computedValue: value,
-      });
-    }
-
-    this.overrides[key as string] = [
-      ...(this.overrides[key as string] || []),
-      { value, rule, isActive },
-    ];
-  }
-
-  constructor(
-    props: Omit<ObjProps<T>, "id"> & { id?: string },
-    protected getObjectById: (id: string) => Obj,
-    protected docHandle: DocHandle<ObjectsDoc>
-  ) {
-    if (props.id) {
-      this.props = props as ObjProps<T>;
-    } else {
-      this.props = { ...props, id: uuid() } as ObjProps<T>;
-    }
-  }
+  constructor(public props: T) {}
 
   parent(): Card | null {
-    if (!this.props.parentId) {
+    if (!this.parentId) {
       return null;
     }
-
-    return this.getObjectById(this.props.parentId) as Card;
+    return getObjectById(this.parentId) as Card;
   }
 
-  copyOf() {
-    if (!this.props.copyOf) {
-      return null;
-    }
-
-    return this.getObjectById(this.props.copyOf);
+  update(callback: (obj: T) => void) {
+    getObjectDocHandle().change((doc) => {
+      callback(doc.objects[this.props.id] as T);
+    });
   }
 
   globalPos(): { x: number; y: number } {
-    const { x, y } = this.props;
     const parent = this.parent();
+
     if (!parent) {
-      return { x, y };
+      return { x: this.props.x, y: this.props.y };
     }
 
     const parentGlobalPos = parent.globalPos();
 
     return {
-      x: x + parentGlobalPos.x,
-      y: y + parentGlobalPos.y,
+      x: this.props.x + parentGlobalPos.x,
+      y: this.props.y + parentGlobalPos.y,
     };
   }
 
-  update(callback: (props: ObjProps<T>) => void) {
-    this.docHandle.change((doc) => {
-      const obj = doc.objects[this.props.id] as unknown as ObjProps<T>;
-      if (obj) {
-        callback(obj);
-      }
-    });
-  }
-
   destroy() {
-    if (this.parent()) {
-      this.parent()!.update((props) => {
-        delete props.childIds[this.props.id];
-      });
-    }
-
-    this.docHandle.change((doc) => {
+    getObjectDocHandle().change((doc) => {
       delete doc.objects[this.props.id];
     });
   }
 
-  serialize(): ObjProps<T> {
-    return structuredClone(this.props);
-  }
-
-  copyProps(): ObjProps<T> {
-    const copiedProps = Object.assign({}, this.props);
-    copiedProps.id = uuid();
-    copiedProps.copyOf = this.props.id;
-
-    return copiedProps;
-  }
-
-  isCopyOf(obj: Obj) {
-    if (obj.props.id === this.props.id) {
-      return true;
-    }
-
-    if (this.copyOf()?.isCopyOf(obj)) {
-      return true;
-    }
-
-    return false;
-  }
-
-  abstract copy(): Obj<T>;
-  abstract toPromptXml(indentation: string): string;
+  abstract copy(): PersistedObject<T>;
   abstract view(props: ObjViewProps): React.ReactNode;
 }
+
+let objectsDocHandle: DocHandle<ObjectDoc> | null = null;
+let objects: Record<string, Obj> = {};
+
+export const registerObjectsDocHandle = (docHandle: DocHandle<ObjectDoc>) => {
+  objectsDocHandle = docHandle;
+};
+
+const getObjectDocHandle = (): DocHandle<ObjectDoc> => {
+  if (!objectsDocHandle) {
+    shouldNeverHappen("No objects doc handle registered");
+  }
+  return objectsDocHandle!;
+};
+
+const getObjectDoc = (): ObjectDoc => {
+  if (!objectsDocHandle) {
+    shouldNeverHappen("No objects doc handle registered");
+  }
+  return objectsDocHandle!.docSync()!;
+};
+
+export const getObjectById = (id: string): Obj => {
+  if (objects[id]) {
+    return objects[id];
+  }
+
+  const doc = getObjectDoc();
+  const props = doc.objects[id];
+
+  switch (props.type) {
+    case "card": {
+      const card = new Card(props);
+      objects[id] = card;
+      return card;
+    }
+    case "field": {
+      const field = new Field(props);
+      objects[id] = field;
+      return field;
+    }
+  }
+};
+
+export const create = <Obj extends PersistedObject<P>, P extends ObjProps>(
+  constructor: new (props: P) => Obj,
+  props: P
+): Obj => {
+  getObjectDocHandle().change((doc) => {
+    doc.objects[props.id] = props;
+  });
+
+  return new constructor(props);
+};
+
+export const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
+  const childCard: CardProps = {
+    id: uuid(),
+    x: 100,
+    y: 100,
+    type: "card",
+    width: 200,
+    height: 100,
+    fillMode: "solid",
+    childIds: {},
+  };
+
+  const rootCard: CardProps = {
+    id: uuid(),
+    x: 0,
+    y: 0,
+    type: "card",
+    width: 0,
+    height: 0,
+    fillMode: "solid",
+    childIds: {
+      [childCard.id]: true,
+    },
+  };
+
+  return repo.create({
+    rootObjectId: rootCard.id,
+    objects: {
+      [rootCard.id]: rootCard,
+      [childCard.id]: childCard,
+    },
+  });
+};
 
 export type ObjViewProps = {
   draggedNode: Obj | undefined;
@@ -185,9 +172,20 @@ export type ObjViewProps = {
   onPointerUp: (event: React.PointerEvent<HTMLDivElement>, node: Obj) => void;
 };
 
-export const ObjView = <T>({
-  obj,
-  ...props
-}: ObjViewProps & { obj: Obj<T> }) => {
+export const ObjView = ({ obj, ...props }: ObjViewProps & { obj: Obj }) => {
   return obj.view(props);
+};
+
+export const useRootObject = (): Card | null => {
+  const [doc] = useDocument<ObjectDoc>(getObjectDocHandle().url);
+
+  return useMemo(() => {
+    if (!doc) {
+      return null;
+    }
+
+    objects = {};
+
+    return getObjectById(doc.rootObjectId) as Card;
+  }, [doc]);
 };

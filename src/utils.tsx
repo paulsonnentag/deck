@@ -1,4 +1,4 @@
-export const SwallopPointerEvents = ({
+export const SwallowPointerEvents = ({
   children,
 }: {
   children: React.ReactNode;
@@ -22,6 +22,7 @@ export const SwallopPointerEvents = ({
 export const shouldNeverHappen = (message: string) => {
   // eslint-disable-next-line no-debugger
   debugger;
+  // This function always throws an exception
   throw new Error(message);
 };
 
