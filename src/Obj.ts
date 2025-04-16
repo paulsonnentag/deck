@@ -55,6 +55,14 @@ export abstract class PersistedObject<T extends ObjProps> {
   }
 
   destroy() {
+    const parent = this.parent();
+
+    if (parent) {
+      parent.update((card) => {
+        delete card.childIds[this.props.id];
+      });
+    }
+
     getObjectDocHandle().change((doc) => {
       delete doc.objects[this.props.id];
     });

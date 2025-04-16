@@ -1,3 +1,4 @@
+import { uuid } from "@automerge/automerge";
 import { colorToHex } from "./Inspector";
 import { Color, colorToBackgroundColorHex } from "./Inspector";
 import {
@@ -39,6 +40,7 @@ export class Card extends PersistedObject<CardProps> {
   copy(): Card {
     return create(Card, {
       ...this.props,
+      id: uuid(),
       childIds: Object.fromEntries(
         this.children().map((child) => [child.copy().props.id, true])
       ),
@@ -100,9 +102,6 @@ export class Card extends PersistedObject<CardProps> {
             onPointerUp={onPointerUp}
           />
         ))}
-
-        {this.parentId}
-
         {!isRoot && (
           <>
             <div

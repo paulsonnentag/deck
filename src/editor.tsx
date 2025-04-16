@@ -177,6 +177,7 @@ export const Editor = ({ documentId }: AppProps) => {
           const offset = parentCard.globalPos();
 
           const newCard = create(Card, {
+            id: uuid(),
             type: "card",
             width: 0,
             height: 0,
