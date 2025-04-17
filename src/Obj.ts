@@ -5,6 +5,7 @@ import { uuid } from "@automerge/automerge";
 import { Field, FieldProps } from "./Field";
 import { useDocument } from "@automerge/automerge-repo-react-hooks";
 import { useMemo } from "react";
+import { applyCalendar, WeekInfo } from "./Calendar";
 
 export type BaseProps = {
   id: string;
@@ -19,7 +20,7 @@ export type ObjectDoc = {
 
 export type ObjProps = CardProps | FieldProps;
 
-export type Obj = Card | Field;
+export type Obj = Card | Field | (Card & WeekInfo);
 
 export abstract class PersistedObject<T extends ObjProps> {
   parentId?: string;
@@ -126,37 +127,12 @@ export const create = <Obj extends PersistedObject<P>, P extends ObjProps>(
   return new constructor(props);
 };
 
-export const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
-  const childCard: CardProps = {
-    id: uuid(),
-    x: 100,
-    y: 100,
-    type: "card",
-    width: 200,
-    height: 100,
-    fillMode: "solid",
-    childIds: {},
-  };
-
-  const rootCard: CardProps = {
-    id: uuid(),
-    x: 0,
-    y: 0,
-    type: "card",
-    width: 0,
-    height: 0,
-    fillMode: "solid",
-    childIds: {
-      [childCard.id]: true,
-    },
-  };
-
-  return repo.create({
-    rootObjectId: rootCard.id,
-    objects: {
-      [rootCard.id]: rootCard,
-      [childCard.id]: childCard,
-    },
+export const updateExtension = <T>(
+  props: T & BaseProps,
+  callback: (props: T) => void
+) => {
+  getObjectDocHandle().change((doc) => {
+    callback(doc.objects[props.id] as T);
   });
 };
 
@@ -193,6 +169,14 @@ export const useRootObject = (): Card | null => {
     }
 
     objects = {};
+
+    for (const obj of Object.values(doc.objects)) {
+      getObjectById(obj.id);
+    }
+
+    for (const obj of Object.values(objects)) {
+      applyCalendar(obj);
+    }
 
     return getObjectById(doc.rootObjectId) as Card;
   }, [doc]);

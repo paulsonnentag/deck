@@ -1,7 +1,7 @@
 import { uuid } from "@automerge/automerge";
 import { BaseProps, create, ObjViewProps, PersistedObject } from "./Obj";
 import { Color, colorToHex, FontSize, fontSizeToPx } from "./Inspector";
-import { TextInput } from "./text-input";
+import { TextInput } from "./TextInput";
 
 export type FieldProps = BaseProps & {
   type: "field";

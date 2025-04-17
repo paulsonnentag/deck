@@ -82,7 +82,6 @@ export const TextInput: React.FC<TextInputProps> = ({
 
   // Adjust dimensions when value changes
   useEffect(() => {
-    console.log("adjusting dimensions");
     adjustDimensions();
   }, [value, className, measureDiv, adjustDimensions]);
 
