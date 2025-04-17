@@ -1,11 +1,10 @@
-import { DocHandle, Repo } from "@automerge/automerge-repo";
-import { shouldNeverHappen } from "./utils";
-import { Card, CardProps } from "./Card";
-import { uuid } from "@automerge/automerge";
-import { Field, FieldProps } from "./Field";
+import { DocHandle } from "@automerge/automerge-repo";
 import { useDocument } from "@automerge/automerge-repo-react-hooks";
 import { useMemo } from "react";
-import { applyCalendar, WeekInfo } from "./Calendar";
+import { Card, CardProps } from "./Card";
+import { Field, FieldProps } from "./Field";
+import { shouldNeverHappen } from "./utils";
+import { applyExtensions } from "./extensions";
 
 export type BaseProps = {
   id: string;
@@ -21,7 +20,7 @@ export type ObjectDoc = {
 
 export type ObjProps = CardProps | FieldProps;
 
-export type Obj = Card | Field | (Card & WeekInfo);
+export type Obj = Card | Field;
 
 export abstract class PersistedObject<T extends ObjProps> {
   parentId?: string;
@@ -128,7 +127,7 @@ export const create = <Obj extends PersistedObject<P>, P extends ObjProps>(
   return new constructor(props);
 };
 
-export const updateExtension = <T>(
+export const updateExtensionState = <T>(
   props: T & BaseProps,
   callback: (props: T) => void
 ) => {
@@ -177,7 +176,7 @@ export const useRootObject = (): Card | null => {
     }
 
     for (const obj of Object.values(objects)) {
-      applyCalendar(obj);
+      applyExtensions(obj);
     }
 
     return getObjectById(doc.rootObjectId) as Card;

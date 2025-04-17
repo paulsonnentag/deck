@@ -9,7 +9,8 @@ import { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network
 import { ObjectDoc, registerObjectsDocHandle } from "./Obj";
 import { FieldProps } from "./Field";
 import { CardProps } from "./Card";
-import { WeekInfo } from "./Calendar";
+import "./calendarExtension";
+import { CalendarCardState } from "./calendarExtension";
 
 const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
   const nextLabel: FieldProps = {
@@ -69,7 +70,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     fontSize: "m",
   };
 
-  const calendarCard: CardProps & WeekInfo = {
+  const calendarCard: CardProps & CalendarCardState = {
     id: uuid(),
     x: 100,
     y: 100,

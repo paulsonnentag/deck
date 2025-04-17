@@ -1,27 +1,30 @@
 import { Card } from "./Card";
 import { Field } from "./Field";
-import { BaseProps, Obj, ObjViewProps, updateExtension } from "./Obj";
+import { BaseProps, Obj, ObjViewProps, updateExtensionState } from "./Obj";
+import { registerExtension } from "./extensions";
 
-export type WeekInfo = {
+export type CalendarCardState = {
   week: number;
 };
 
-const getWeekInfo = (props: any): (WeekInfo & BaseProps) | undefined => {
+const getCalendarCardState = (
+  props: any
+): (CalendarCardState & BaseProps) | undefined => {
   if (props.week) {
-    return props as WeekInfo & BaseProps;
+    return props as CalendarCardState & BaseProps;
   }
 
   return undefined;
 };
 
-export const applyCalendar = (obj: Obj) => {
+registerExtension((obj: Obj) => {
   if (!(obj instanceof Card)) {
     return;
   }
 
-  const weekInfo = getWeekInfo(obj.props);
+  const calendarCardState = getCalendarCardState(obj.props);
 
-  if (!weekInfo) {
+  if (!calendarCardState) {
     return;
   }
 
@@ -48,7 +51,7 @@ export const applyCalendar = (obj: Obj) => {
           .children()
           .find((child) => child instanceof Field && child.props.value == "⏵")
       ) {
-        updateExtension<WeekInfo>(weekInfo, (props) => {
+        updateExtensionState<CalendarCardState>(calendarCardState, (props) => {
           props.week = props.week + 1;
         });
       } else if (
@@ -56,7 +59,7 @@ export const applyCalendar = (obj: Obj) => {
           .children()
           .find((child) => child instanceof Field && child.props.value == "⏴")
       ) {
-        updateExtension<WeekInfo>(weekInfo, (props) => {
+        updateExtensionState<CalendarCardState>(calendarCardState, (props) => {
           props.week = props.week - 1;
         });
       }
@@ -73,4 +76,4 @@ export const applyCalendar = (obj: Obj) => {
       isParentLocked,
     });
   };
-};
+});
