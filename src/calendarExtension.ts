@@ -17,63 +17,101 @@ const getCalendarCardState = (
   return undefined;
 };
 
-registerExtension((obj: Obj) => {
-  if (!(obj instanceof Card)) {
-    return;
-  }
+registerExtension({
+  extend: (obj: Obj) => {
+    if (!(obj instanceof Card)) {
+      return;
+    }
 
-  const calendarCardState = getCalendarCardState(obj.props);
+    const calendarCardState = getCalendarCardState(obj.props);
 
-  if (!calendarCardState) {
-    return;
-  }
+    if (!calendarCardState) {
+      return;
+    }
 
-  const originalView = obj.view.bind(obj);
+    const originalView = obj.view.bind(obj);
 
-  obj.view = ({
-    draggedNode,
-    selectedNode,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    isParentLocked,
-  }: ObjViewProps) => {
-    const _onPointerDown = (
-      evt: React.PointerEvent<HTMLDivElement>,
-      obj: Obj
-    ) => {
-      if (!(obj instanceof Card)) {
-        return;
-      }
-
-      if (
-        obj
-          .children()
-          .find((child) => child instanceof Field && child.props.value == "⏵")
-      ) {
-        updateExtensionState<CalendarCardState>(calendarCardState, (props) => {
-          props.week = props.week + 1;
-        });
-      } else if (
-        obj
-          .children()
-          .find((child) => child instanceof Field && child.props.value == "⏴")
-      ) {
-        updateExtensionState<CalendarCardState>(calendarCardState, (props) => {
-          props.week = props.week - 1;
-        });
-      }
-
-      onPointerDown(evt, obj);
-    };
-
-    return originalView({
+    obj.view = ({
       draggedNode,
       selectedNode,
-      onPointerDown: _onPointerDown,
+      onPointerDown,
       onPointerMove,
       onPointerUp,
       isParentLocked,
-    });
-  };
+    }: ObjViewProps) => {
+      const _onPointerDown = (
+        evt: React.PointerEvent<HTMLDivElement>,
+        obj: Obj
+      ) => {
+        if (!(obj instanceof Card)) {
+          return;
+        }
+
+        if (
+          obj
+            .children()
+            .find((child) => child instanceof Field && child.props.value == "⏵")
+        ) {
+          updateExtensionState<CalendarCardState>(
+            calendarCardState,
+            (props) => {
+              props.week = props.week + 1;
+            }
+          );
+        } else if (
+          obj
+            .children()
+            .find((child) => child instanceof Field && child.props.value == "⏴")
+        ) {
+          updateExtensionState<CalendarCardState>(
+            calendarCardState,
+            (props) => {
+              props.week = props.week - 1;
+            }
+          );
+        }
+
+        onPointerDown(evt, obj);
+      };
+
+      return originalView({
+        draggedNode,
+        selectedNode,
+        onPointerDown: _onPointerDown,
+        onPointerMove,
+        onPointerUp,
+        isParentLocked,
+      });
+    };
+  },
+  suggestComputations: (obj: Obj) => {
+    if (!(obj instanceof Card)) {
+      return [];
+    }
+
+    const calendarCardState = getCalendarCardState(obj.props);
+
+    if (!calendarCardState) {
+      return [];
+    }
+
+    return [
+      {
+        name: "Week number",
+        expression: "`# ${week}`",
+      },
+    ];
+  },
 });
+
+export type DayCardState = {
+  date: Date;
+};
+
+const getDayCardState = (
+  props: any
+): (DayCardState & BaseProps) | undefined => {
+  if (props.day) {
+    return props as DayCardState & BaseProps;
+  }
+};

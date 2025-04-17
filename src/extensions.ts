@@ -1,6 +1,14 @@
 import { Obj } from "./Obj";
 
-type Extension = (ob: Obj) => void;
+type SuggestedComputation = {
+  name: string;
+  expression: string;
+};
+
+type Extension = {
+  extend: (obj: Obj) => void;
+  suggestComputations?: (obj: Obj) => SuggestedComputation[];
+};
 
 const extensions: Extension[] = [];
 
@@ -10,6 +18,14 @@ export const registerExtension = (extension: Extension) => {
 
 export const applyExtensions = (obj: Obj) => {
   for (const extension of extensions) {
-    extension(obj);
+    extension.extend(obj);
+  }
+};
+
+export const suggestComputations = (obj: Obj) => {
+  for (const extension of extensions) {
+    if (extension.suggestComputations) {
+      return extension.suggestComputations(obj);
+    }
   }
 };

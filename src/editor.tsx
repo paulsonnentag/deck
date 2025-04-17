@@ -57,7 +57,7 @@ type FieldToolState = {
 type PointerToolState = {
   type: "pointer";
   state?: {
-    activeNodeId: string;
+    activeObjectId: string;
     dragState?: DragState;
     handle?: Handle;
   };
@@ -89,14 +89,14 @@ export const Editor = ({ documentId }: AppProps) => {
   }, [objectsDoc]);
 
   const selectedObject = useMemo(() => {
-    if (tool.type === "pointer" && tool.state?.activeNodeId) {
-      return getObjectById(tool.state.activeNodeId);
+    if (tool.type === "pointer" && tool.state?.activeObjectId) {
+      return getObjectById(tool.state.activeObjectId);
     }
   }, [tool, rootCard]); // need to re-run when objects are recomputed, this is why we have rootCard in here
 
   const draggedObject = useMemo(() => {
     if (tool.type === "pointer" && tool.state?.dragState) {
-      return getObjectById(tool.state.activeNodeId);
+      return getObjectById(tool.state.activeObjectId);
     }
   }, [tool, rootCard]); // need to re-run when objects are recomputed, this is why we have rootCard in here
 
@@ -115,6 +115,7 @@ export const Editor = ({ documentId }: AppProps) => {
       // cut card
     } else if (event.code === "KeyX" && (event.ctrlKey || event.metaKey)) {
       if (selectedObject && selectedObject !== rootCard) {
+        setTool({ type: "pointer" });
         setClipboard(selectedObject);
         selectedObject.destroy();
       }
@@ -133,10 +134,12 @@ export const Editor = ({ documentId }: AppProps) => {
           addChild(card, newObj);
         });
 
-        setTool({
-          type: "pointer",
-          state: { activeNodeId: newObj.props.id },
-        });
+        // setTimeout(() => {
+        //   setTool({
+        //     type: "pointer",
+        //     state: { activeObjectId: newObj.props.id },
+        //   });
+        // }, 100);
       }
 
       // print card
@@ -158,6 +161,7 @@ export const Editor = ({ documentId }: AppProps) => {
     } else if (event.code === "Backspace") {
       if (selectedObject) {
         selectedObject.destroy();
+        setTool({ type: "pointer" });
       }
       // cancel selection
     } else if (event.code === "Escape") {
@@ -204,7 +208,7 @@ export const Editor = ({ documentId }: AppProps) => {
           setTool({
             type: "pointer",
             state: {
-              activeNodeId: node.props.id,
+              activeObjectId: node.props.id,
               dragState: {
                 handle,
                 offset: {
@@ -236,7 +240,7 @@ export const Editor = ({ documentId }: AppProps) => {
           setTool({
             type: "pointer",
             state: {
-              activeNodeId: newField.props.id,
+              activeObjectId: newField.props.id,
             },
           });
           break;
@@ -270,8 +274,8 @@ export const Editor = ({ documentId }: AppProps) => {
         }
 
         case "pointer": {
-          const activeObject = tool.state?.activeNodeId
-            ? getObjectById(tool.state.activeNodeId)
+          const activeObject = tool.state?.activeObjectId
+            ? getObjectById(tool.state.activeObjectId)
             : undefined;
 
           const dragState = tool.state?.dragState;
@@ -402,7 +406,7 @@ export const Editor = ({ documentId }: AppProps) => {
             setTool({
               type: "pointer",
               state: {
-                activeNodeId: tool.state.activeCardId,
+                activeObjectId: tool.state.activeCardId,
               },
             });
           }
@@ -415,7 +419,7 @@ export const Editor = ({ documentId }: AppProps) => {
           setTool({
             type: "pointer",
             state: {
-              activeNodeId: tool.state.activeNodeId,
+              activeObjectId: tool.state.activeObjectId,
               dragState: undefined,
             },
           });

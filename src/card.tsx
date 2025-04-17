@@ -39,7 +39,7 @@ export class Card extends PersistedObject<CardProps> {
 
   copy(): Card {
     return create(Card, {
-      ...this.props,
+      ...structuredClone(this.props),
       id: uuid(),
       childIds: Object.fromEntries(
         this.children().map((child) => [child.copy().props.id, true])

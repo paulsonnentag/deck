@@ -3,7 +3,7 @@ import { BaseProps, create, Obj, ObjViewProps, PersistedObject } from "./Obj";
 import { Color, colorToHex, FontSize, fontSizeToPx } from "./Inspector";
 import { TextInput } from "./TextInput";
 
-type FieldValue = string | { expression: string };
+type FieldValue = string | { expression: string; objId?: string };
 
 export type FieldProps = BaseProps & {
   type: "field";
@@ -14,7 +14,10 @@ export type FieldProps = BaseProps & {
 
 export class Field extends PersistedObject<FieldProps> {
   copy(): Field {
-    return create<Field, FieldProps>(Field, { ...this.props, id: uuid() });
+    return create<Field, FieldProps>(Field, {
+      ...structuredClone(this.props),
+      id: uuid(),
+    });
   }
 
   view({

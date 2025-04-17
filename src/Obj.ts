@@ -102,6 +102,10 @@ export const getObjectById = (id: string): Obj => {
   const doc = getObjectDoc();
   const props = doc.objects[id];
 
+  if (!props) {
+    shouldNeverHappen(`Object with id ${id} not found`);
+  }
+
   switch (props.type) {
     case "card": {
       const card = new Card(props);
