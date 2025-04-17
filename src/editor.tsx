@@ -454,7 +454,7 @@ export const Editor = ({ documentId }: AppProps) => {
         />
       )}
 
-      <div className="absolute top-0 bottom-0 flex flex-col items-center justify-center right-4 pointer-events-none">
+      <div className="absolute top-4 right-4 pointer-events-none">
         <div className="pointer-events-auto">
           <SwallowPointerEvents>
             <Inspector state={inspectorState} setState={setInspectorState} />

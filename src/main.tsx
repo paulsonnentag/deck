@@ -82,7 +82,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     type: "card",
     width: 0,
     height: 0,
-    fillMode: "solid",
+    color: "black",
     childIds: {
       [childCard.id]: true,
     },

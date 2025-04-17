@@ -109,7 +109,9 @@ export const TextInput: React.FC<TextInputProps> = ({
         onKeyDown={onKeyDown}
         onChange={handleChange}
         placeholder={placeholder}
-        className={`resize-none overflow-hidden ${className}`}
+        className={`resize-none overflow-hidden ${className} 
+          ${disabled ? "pointer-events-none" : ""}
+        `}
         disabled={disabled}
         style={{
           boxSizing: "border-box",

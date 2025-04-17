@@ -61,7 +61,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
         <button
           key={name}
           onClick={() => onChange(name as Color)}
-          className={`w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110 ${
+          className={`w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110 m-auto ${
             value === color ? "ring-2 ring-offset-2 ring-gray-400" : ""
           }`}
           style={{ backgroundColor: color }}
@@ -180,7 +180,7 @@ export const useInspectorState = ({
       if (selectedObject instanceof Card) {
         const card = selectedObject as Card;
         color = (card.props.color as Color) || "black";
-        fillMode = card.props.fillMode || "none";
+        fillMode = card.parent() ? card.props.fillMode || "none" : null;
       } else {
         const field = selectedObject as Field;
         color = (field.props.color as Color) || "black";
@@ -287,12 +287,11 @@ export const Inspector = ({
   };
 
   const handleIsLockedChange = () => {
-    console.log("toggled", isLocked);
     setState({ isLocked: !isLocked });
   };
 
   return (
-    <div className="flex flex-col gap-1 p-1 bg-white shadow-md rounded-md">
+    <div className="flex flex-col gap-1 p-1 bg-white shadow-md rounded-md w-[210px]">
       <ColorPicker value={color} onChange={handleColorChange} />
 
       {fillMode !== null && (

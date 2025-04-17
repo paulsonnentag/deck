@@ -15,7 +15,7 @@ export type CardProps = BaseProps & {
   type: "card";
   width: number;
   height: number;
-  fillMode: "solid" | "none";
+  fillMode?: "solid" | "none";
   color?: Color;
   childIds: Record<string, true>;
 };
@@ -85,7 +85,7 @@ export class Card extends PersistedObject<CardProps> {
     return (
       <div
         className={`
-            ${isRoot ? "bg-gray-100" : "bg-white rounded-md border-2"}
+            ${isRoot ? "" : "rounded-md border-2"}
             ${isBeingDragged && !isRoot ? "pointer-events-none" : ""} 
             ${isSelected ? "shadow-solid" : ""}
           `}

@@ -12,6 +12,7 @@ import {
   updateExtension,
 } from "./Obj";
 import { Card, CardProps } from "./Card";
+import { Field } from "./Field";
 
 export type WeekInfo = {
   week: number;
@@ -36,5 +37,48 @@ export const applyCalendar = (obj: Obj) => {
     return;
   }
 
-  obj.props.color = "red";
+  const originalView = obj.view.bind(obj);
+
+  obj.view = ({
+    draggedNode,
+    selectedNode,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    isParentLocked,
+  }: ObjViewProps) => {
+    const _onPointerDown = (
+      evt: React.PointerEvent<HTMLDivElement>,
+      obj: Obj
+    ) => {
+      if (!(obj instanceof Card)) {
+        return;
+      }
+
+      if (
+        obj
+          .children()
+          .find((child) => child instanceof Field && child.props.value == "⏵")
+      ) {
+        console.log("next");
+      } else if (
+        obj
+          .children()
+          .find((child) => child instanceof Field && child.props.value == "⏴")
+      ) {
+        console.log("prev");
+      }
+
+      onPointerDown(evt, obj);
+    };
+
+    return originalView({
+      draggedNode,
+      selectedNode,
+      onPointerDown: _onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      isParentLocked,
+    });
+  };
 };
