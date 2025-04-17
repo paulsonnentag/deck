@@ -1,26 +1,14 @@
-import { uuid } from "@automerge/automerge";
-import { colorToHex } from "./Inspector";
-import { Color, colorToBackgroundColorHex } from "./Inspector";
-import {
-  BaseProps,
-  Obj,
-  ObjView,
-  ObjViewProps,
-  PersistedObject,
-  create,
-  getObjectById,
-  updateExtension,
-} from "./Obj";
-import { Card, CardProps } from "./Card";
+import { Card } from "./Card";
 import { Field } from "./Field";
+import { BaseProps, Obj, ObjViewProps, updateExtension } from "./Obj";
 
 export type WeekInfo = {
   week: number;
 };
 
-const getWeekInfo = (props: any): WeekInfo | undefined => {
+const getWeekInfo = (props: any): (WeekInfo & BaseProps) | undefined => {
   if (props.week) {
-    return props as WeekInfo;
+    return props as WeekInfo & BaseProps;
   }
 
   return undefined;
@@ -60,13 +48,17 @@ export const applyCalendar = (obj: Obj) => {
           .children()
           .find((child) => child instanceof Field && child.props.value == "⏵")
       ) {
-        console.log("next");
+        updateExtension<WeekInfo>(weekInfo, (props) => {
+          props.week = props.week + 1;
+        });
       } else if (
         obj
           .children()
           .find((child) => child instanceof Field && child.props.value == "⏴")
       ) {
-        console.log("prev");
+        updateExtension<WeekInfo>(weekInfo, (props) => {
+          props.week = props.week - 1;
+        });
       }
 
       onPointerDown(evt, obj);

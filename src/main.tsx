@@ -14,7 +14,7 @@ import { WeekInfo } from "./Calendar";
 const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
   const nextLabel: FieldProps = {
     id: uuid(),
-    x: 0,
+    x: 15,
     y: 0,
     type: "field",
     value: "⏵",
@@ -23,8 +23,8 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
 
   const prevLabel: FieldProps = {
     id: uuid(),
-    x: 10,
-    y: 10,
+    x: 0,
+    y: 0,
     type: "field",
     value: "⏴",
     fontSize: "l",
@@ -32,7 +32,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
 
   const nextButton: CardProps = {
     id: uuid(),
-    x: 70,
+    x: 200,
     y: 10,
     type: "card",
     width: 50,
@@ -60,7 +60,16 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     isLocked: true,
   };
 
-  const childCard: CardProps & WeekInfo = {
+  const weekNumberField: FieldProps = {
+    id: uuid(),
+    x: 70,
+    y: 15,
+    type: "field",
+    value: { expression: "`week # ${week}`" },
+    fontSize: "m",
+  };
+
+  const calendarCard: CardProps & WeekInfo = {
     id: uuid(),
     x: 100,
     y: 100,
@@ -69,6 +78,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     height: 200,
     fillMode: "solid",
     childIds: {
+      [weekNumberField.id]: true,
       [nextButton.id]: true,
       [prevButton.id]: true,
     },
@@ -84,7 +94,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     height: 0,
     color: "black",
     childIds: {
-      [childCard.id]: true,
+      [calendarCard.id]: true,
     },
   };
 
@@ -92,11 +102,12 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     rootObjectId: rootCard.id,
     objects: {
       [rootCard.id]: rootCard,
-      [childCard.id]: childCard,
+      [calendarCard.id]: calendarCard,
       [nextButton.id]: nextButton,
       [prevButton.id]: prevButton,
       [nextLabel.id]: nextLabel,
       [prevLabel.id]: prevLabel,
+      [weekNumberField.id]: weekNumberField,
     },
   });
 };
