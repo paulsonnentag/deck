@@ -11,6 +11,7 @@ export type BaseProps = {
   id: string;
   x: number;
   y: number;
+  isLocked?: boolean;
 };
 
 export type ObjectDoc = {
@@ -137,6 +138,7 @@ export const updateExtension = <T>(
 };
 
 export type ObjViewProps = {
+  isParentLocked?: boolean;
   draggedNode: Obj | undefined;
   selectedNode: Obj | undefined;
   onPointerDown: (

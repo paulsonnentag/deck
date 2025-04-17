@@ -42,6 +42,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
       [nextLabel.id]: true,
     },
     color: "blue",
+    isLocked: true,
   };
 
   const prevButton: CardProps = {
@@ -56,6 +57,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
       [prevLabel.id]: true,
     },
     color: "blue",
+    isLocked: true,
   };
 
   const childCard: CardProps & WeekInfo = {

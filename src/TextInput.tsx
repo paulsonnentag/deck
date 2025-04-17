@@ -5,9 +5,10 @@ interface TextInputProps {
   value: string;
   placeholder?: string;
   className?: string;
+  focus?: boolean;
+  disabled?: boolean;
   onChange: (value: string) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  focus?: boolean;
 }
 
 export const TextInput: React.FC<TextInputProps> = ({
@@ -16,6 +17,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   className = "",
   onChange,
   onKeyDown,
+  disabled,
   focus,
 }) => {
   const [measureDiv, setMeasureDiv] = useState<HTMLDivElement | null>(null);
@@ -108,6 +110,7 @@ export const TextInput: React.FC<TextInputProps> = ({
         onChange={handleChange}
         placeholder={placeholder}
         className={`resize-none overflow-hidden ${className}`}
+        disabled={disabled}
         style={{
           boxSizing: "border-box",
           verticalAlign: "top",

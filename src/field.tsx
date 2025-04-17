@@ -18,6 +18,7 @@ export class Field extends PersistedObject<FieldProps> {
   view({
     draggedNode,
     selectedNode,
+    isParentLocked,
     onPointerDown,
     onPointerMove,
     onPointerUp,
@@ -28,6 +29,8 @@ export class Field extends PersistedObject<FieldProps> {
     const id = this.props.id;
     const x = this.props.x;
     const y = this.props.y;
+    const isSelfLocked = this.props.isLocked;
+    const isLocked = isSelfLocked || isParentLocked;
 
     const isBeingDragged = draggedNode?.props.id === id;
     const isSelected = selectedNode?.props.id === id;
@@ -44,11 +47,30 @@ export class Field extends PersistedObject<FieldProps> {
           fontSize: fontSizeToPx(fontSize),
           color: colorToHex(color),
         }}
-        onPointerDown={(e) => onPointerDown(e, this)}
-        onPointerMove={(e) => onPointerMove(e, this)}
-        onPointerUp={(e) => onPointerUp(e, this)}
+        onPointerDown={(e) => {
+          if (isLocked) {
+            return;
+          }
+
+          onPointerDown(e, this);
+        }}
+        onPointerMove={(e) => {
+          if (isLocked) {
+            return;
+          }
+
+          onPointerMove(e, this);
+        }}
+        onPointerUp={(e) => {
+          if (isLocked) {
+            return;
+          }
+
+          onPointerUp(e, this);
+        }}
       >
         <TextInput
+          disabled={isLocked}
           focus={isSelected}
           className="outline-none"
           value={value}

@@ -92,17 +92,17 @@ export const Editor = ({ documentId }: AppProps) => {
     if (tool.type === "pointer" && tool.state?.activeNodeId) {
       return getObjectById(tool.state.activeNodeId);
     }
-  }, [tool]);
+  }, [tool, rootCard]); // need to re-run when objects are recomputed, this is why we have rootCard in here
 
   const draggedObject = useMemo(() => {
     if (tool.type === "pointer" && tool.state?.dragState) {
       return getObjectById(tool.state.activeNodeId);
     }
-  }, [tool]);
+  }, [tool, rootCard]); // need to re-run when objects are recomputed, this is why we have rootCard in here
 
   const [inspectorState, setInspectorState] = useInspectorState({
     tool,
-    selectedNode: selectedObject,
+    selectedObject,
   });
 
   const onKeyDown = useStaticCallback((event: KeyboardEvent) => {
@@ -257,7 +257,6 @@ export const Editor = ({ documentId }: AppProps) => {
             ? (getObjectById(tool.state.activeCardId) as Card)
             : undefined;
           if (!activeCard) {
-            console.log("no active card");
             break;
           }
 
@@ -277,7 +276,12 @@ export const Editor = ({ documentId }: AppProps) => {
 
           const dragState = tool.state?.dragState;
 
-          if (!activeObject || !dragState || activeObject.parent() === null) {
+          if (
+            !activeObject ||
+            !dragState ||
+            activeObject.parent() === null ||
+            activeObject.props.isLocked
+          ) {
             break;
           }
 

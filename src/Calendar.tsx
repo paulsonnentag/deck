@@ -30,15 +30,11 @@ export const applyCalendar = (obj: Obj) => {
     return;
   }
 
-  console.log("obj", obj.props);
-
   const weekInfo = getWeekInfo(obj.props);
 
   if (!weekInfo) {
     return;
   }
-
-  console.log("thing");
 
   obj.props.color = "red";
 };

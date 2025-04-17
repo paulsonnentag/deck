@@ -148,6 +148,7 @@ type InspectorState = {
   color: Color;
   fontSize: FontSize | null;
   fillMode: FillMode | null;
+  isLocked: boolean | null;
 };
 
 type InspectorContext = {
@@ -157,29 +158,31 @@ type InspectorContext = {
 
 export const useInspectorState = ({
   tool,
-  selectedNode,
+  selectedObject,
 }: {
   tool: ToolState;
-  selectedNode?: Obj;
+  selectedObject?: Obj;
 }): [InspectorState, (state: Partial<InspectorState>) => void] => {
-  const [_inspectorState, _setInspectorState] = useState<InspectorState>({
+  const [_inspectorState, _setInspectorState] = useState<
+    Omit<InspectorState, "isLocked">
+  >({
     color: "black",
     fontSize: "s",
     fillMode: "none",
   });
 
-  const inspectorState = useMemo(() => {
-    if (selectedNode) {
+  const inspectorState: InspectorState = useMemo(() => {
+    if (selectedObject) {
       let color: Color;
       let fillMode: FillMode | null = null;
       let fontSize: FontSize | null = null;
 
-      if (selectedNode instanceof Card) {
-        const card = selectedNode as Card;
+      if (selectedObject instanceof Card) {
+        const card = selectedObject as Card;
         color = (card.props.color as Color) || "black";
         fillMode = card.props.fillMode || "none";
       } else {
-        const field = selectedNode as Field;
+        const field = selectedObject as Field;
         color = (field.props.color as Color) || "black";
         fontSize = field.props.fontSize || "s";
       }
@@ -188,6 +191,7 @@ export const useInspectorState = ({
         color,
         fillMode,
         fontSize,
+        isLocked: selectedObject.props.isLocked ?? false,
       };
     }
 
@@ -197,6 +201,7 @@ export const useInspectorState = ({
           color: _inspectorState.color,
           fillMode: _inspectorState.fillMode,
           fontSize: null,
+          isLocked: null,
         };
 
       case "field":
@@ -204,22 +209,29 @@ export const useInspectorState = ({
           color: _inspectorState.color,
           fillMode: null,
           fontSize: _inspectorState.fontSize,
+          isLocked: null,
         };
 
       default:
-        return _inspectorState;
+        return {
+          ..._inspectorState,
+          isLocked: null,
+        };
     }
-  }, [selectedNode, tool, _inspectorState]);
+  }, [selectedObject, tool, _inspectorState]);
 
   const setInspectorState = useStaticCallback(
     (state: Partial<InspectorState>) => {
-      if (!selectedNode) {
+      if (!selectedObject) {
+        delete state.isLocked;
+
         _setInspectorState((prevState) => ({ ...prevState, ...state }));
         return;
       }
 
-      if (selectedNode instanceof Card) {
-        const card = selectedNode as Card;
+      if (selectedObject instanceof Card) {
+        const card = selectedObject as Card;
+        console.log("update", state.isLocked);
         card.update((props) => {
           if (state.color) {
             props.color = state.color;
@@ -227,15 +239,23 @@ export const useInspectorState = ({
           if (state.fillMode) {
             props.fillMode = state.fillMode;
           }
+
+          if (state.isLocked === true || state.isLocked === false) {
+            props.isLocked = state.isLocked;
+          }
         });
-      } else if (selectedNode instanceof Field) {
-        const field = selectedNode as Field;
+      } else if (selectedObject instanceof Field) {
+        const field = selectedObject as Field;
         field.update((props) => {
           if (state.color) {
             props.color = state.color;
           }
           if (state.fontSize) {
             props.fontSize = state.fontSize;
+          }
+
+          if (state.isLocked === true || state.isLocked === false) {
+            props.isLocked = state.isLocked;
           }
         });
       }
@@ -252,7 +272,7 @@ export const Inspector = ({
   state: InspectorState;
   setState: (state: Partial<InspectorState>) => void;
 }) => {
-  const { color, fontSize, fillMode } = state;
+  const { color, fontSize, fillMode, isLocked } = state;
 
   const handleColorChange = (color: Color) => {
     setState({ color });
@@ -264,6 +284,11 @@ export const Inspector = ({
 
   const handleFillModeChange = (fillMode: FillMode) => {
     setState({ fillMode });
+  };
+
+  const handleIsLockedChange = () => {
+    console.log("toggled", isLocked);
+    setState({ isLocked: !isLocked });
   };
 
   return (
@@ -280,6 +305,23 @@ export const Inspector = ({
         <>
           <InspectorDivider />
           <FontSizePicker fontSize={fontSize} onChange={handleFontSizeChange} />
+        </>
+      )}
+
+      {isLocked !== null && (
+        <>
+          <InspectorDivider />
+          <div className="flex items-center gap-2 p-2">
+            <button
+              type="button"
+              onClick={handleIsLockedChange}
+              className={`w-[40px] h-[40px] rounded-md cursor-pointer transition-transform hover:scale-110 ${
+                isLocked ? "bg-gray-200" : ""
+              }`}
+            >
+              {isLocked ? "🔒" : "🔓"}
+            </button>
+          </div>
         </>
       )}
     </div>

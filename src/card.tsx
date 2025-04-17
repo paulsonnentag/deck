@@ -53,6 +53,7 @@ export class Card extends PersistedObject<CardProps> {
     onPointerDown,
     onPointerMove,
     onPointerUp,
+    isParentLocked,
   }: ObjViewProps) {
     const id = this.props.id;
     const width = this.props.width;
@@ -61,6 +62,8 @@ export class Card extends PersistedObject<CardProps> {
     const y = this.props.y;
     const fillMode = this.props.fillMode;
     const color = this.props.color ?? "black";
+    const isSelfLocked = this.props.isLocked;
+    const isLocked = isSelfLocked || isParentLocked;
 
     const isBeingDragged = draggedObj?.props.id === id;
     const isSelected = selectedObj?.props.id === id;
@@ -87,12 +90,31 @@ export class Card extends PersistedObject<CardProps> {
             ${isSelected ? "shadow-solid" : ""}
           `}
         style={style}
-        onPointerDown={(e) => onPointerDown(e, this as Obj)}
-        onPointerMove={(e) => onPointerMove(e, this as Obj)}
-        onPointerUp={(e) => onPointerUp(e, this as Obj)}
+        onPointerDown={(e) => {
+          if (isParentLocked) {
+            return;
+          }
+
+          onPointerDown(e, this as Obj);
+        }}
+        onPointerMove={(e) => {
+          if (isParentLocked) {
+            return;
+          }
+
+          onPointerMove(e, this as Obj);
+        }}
+        onPointerUp={(e) => {
+          if (isParentLocked) {
+            return;
+          }
+
+          onPointerUp(e, this as Obj);
+        }}
       >
         {this.children().map((child) => (
           <ObjView
+            isParentLocked={isLocked || isParentLocked}
             key={child.props.id}
             obj={child}
             draggedNode={draggedObj}
@@ -102,7 +124,7 @@ export class Card extends PersistedObject<CardProps> {
             onPointerUp={onPointerUp}
           />
         ))}
-        {!isRoot && (
+        {!isRoot && !isLocked && (
           <>
             <div
               className={`absolute top-[-5px] h-[10px] cursor-ns-resize left-[5px] right-[5px]`}
