@@ -20,6 +20,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.482.0",
     "outdent": "^0.8.0",
+    "perfect-freehand": "^1.2.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.0.12"

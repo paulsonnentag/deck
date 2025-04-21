@@ -134,12 +134,10 @@ export const Editor = ({ documentId }: AppProps) => {
           addChild(card, newObj);
         });
 
-        // setTimeout(() => {
-        //   setTool({
-        //     type: "pointer",
-        //     state: { activeObjectId: newObj.props.id },
-        //   });
-        // }, 100);
+        setTool({
+          type: "pointer",
+          state: { activeObjectId: newObj.props.id },
+        });
       }
 
       // print card

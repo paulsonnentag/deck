@@ -129,7 +129,7 @@ if (!documentId) {
   (window as any).docHandle = handle;
 
   // Update URL with the new document ID
-  // window.location.hash = documentId;
+  window.location.hash = documentId;
 } else {
   const handle = repo.find<ObjectDoc>(documentId);
   (window as any).docHandle = handle;
