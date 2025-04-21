@@ -8,7 +8,6 @@ import { useStaticCallback } from "./hooks";
 import { Inspector, useInspectorState } from "./Inspector";
 import { create, getObjectById, Obj, ObjView, useRootObject } from "./Obj";
 import { SwallowPointerEvents } from "./utils";
-import { ObjectsDoc } from "./ObjectsDoc";
 import { uuid } from "@automerge/automerge";
 import { Field, FieldProps } from "./Field";
 

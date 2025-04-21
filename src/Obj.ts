@@ -5,6 +5,18 @@ import { Card, CardProps } from "./Card";
 import { Field, FieldProps } from "./Field";
 import { shouldNeverHappen } from "./utils";
 import { applyExtensions } from "./extensions";
+import * as API from "./api";
+
+export type Expression = {
+  type: "expression";
+  source: string;
+};
+
+export const isExpression = (value: any): value is Expression => {
+  return (
+    typeof value === "object" && "type" in value && value.type === "expression"
+  );
+};
 
 export type BaseProps = {
   id: string;
@@ -67,6 +79,29 @@ export abstract class PersistedObject<T extends ObjProps> {
     getObjectDocHandle().change((doc) => {
       delete doc.objects[this.props.id];
     });
+  }
+
+  get<K extends keyof T>(key: K): T[K] {
+    const value = this.props[key];
+
+    if (isExpression(value)) {
+      return this.evaluate(value.source);
+    }
+
+    return value;
+  }
+
+  evaluate(expression: string) {
+    try {
+      return new Function(
+        "props",
+        "API",
+        `with ({...API, ...props}) { return ${expression} }`
+      )(this, API);
+    } catch (error) {
+      console.error(error);
+      return "Error";
+    }
   }
 
   abstract copy(): PersistedObject<T>;

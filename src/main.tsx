@@ -66,7 +66,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     x: 70,
     y: 15,
     type: "field",
-    value: { expression: "`week # ${week}`" },
+    value: { type: "expression", source: "`week # ${week}`" },
     fontSize: "m",
   };
 

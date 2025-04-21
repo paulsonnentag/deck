@@ -1,13 +1,19 @@
 import { uuid } from "@automerge/automerge";
-import { BaseProps, create, Obj, ObjViewProps, PersistedObject } from "./Obj";
+import {
+  BaseProps,
+  create,
+  Expression,
+  isExpression,
+  Obj,
+  ObjViewProps,
+  PersistedObject,
+} from "./Obj";
 import { Color, colorToHex, FontSize, fontSizeToPx } from "./Inspector";
 import { TextInput } from "./TextInput";
 
-type FieldValue = string | { expression: string; objId?: string };
-
 export type FieldProps = BaseProps & {
   type: "field";
-  value: FieldValue;
+  value: string | Expression;
   color?: Color;
   fontSize?: FontSize;
 };
@@ -29,16 +35,22 @@ export class Field extends PersistedObject<FieldProps> {
     onPointerUp,
   }: ObjViewProps) {
     const value = this.props.value;
-    const color = this.props.color ?? "black";
-    const fontSize = this.props.fontSize ?? "s";
-    const id = this.props.id;
-    const x = this.props.x;
-    const y = this.props.y;
-    const isSelfLocked = this.props.isLocked;
+    const color = this.get("color") ?? "black";
+    const fontSize = this.get("fontSize") ?? "s";
+    const id = this.get("id");
+    const x = this.get("x");
+    const y = this.get("y");
+    const isSelfLocked = this.get("isLocked");
     const isLocked = isSelfLocked || isParentLocked;
 
     const isBeingDragged = draggedNode?.props.id === id;
     const isSelected = selectedNode?.props.id === id;
+
+    const source = isExpression(value) ? `=${value.source}` : value;
+
+    const result = isExpression(value)
+      ? this.parent()!.evaluate(value.source)
+      : value;
 
     return (
       <div
@@ -75,42 +87,35 @@ export class Field extends PersistedObject<FieldProps> {
           onPointerUp(e, this);
         }}
       >
-        {typeof value === "string" ? (
+        {isSelected ? (
           <TextInput
             disabled={isLocked}
             focus={isSelected}
             className="outline-none"
-            value={value}
-            onChange={(value) =>
+            value={source}
+            onChange={(value) => {
               this.update((props) => {
-                props.value = value;
-              })
-            }
+                props.value = value.startsWith("=")
+                  ? {
+                      type: "expression",
+                      source: value.slice(1),
+                    }
+                  : value;
+              });
+            }}
             onKeyDown={async (e) => {
               e.stopPropagation();
               if (e.key === "Backspace") {
-                if (value.length === 0) {
+                if (source.length === 0) {
                   this.destroy();
                 }
               }
             }}
           />
         ) : (
-          <div className="text-gray-500">
-            {evaluateExpression(this.parent()!, value.expression)}
-          </div>
+          result.toString()
         )}
       </div>
     );
   }
 }
-
-const evaluateExpression = (obj: Obj, expression: string) => {
-  try {
-    return new Function("props", `with (props) { return ${expression} }`)(
-      obj.props
-    );
-  } catch (e) {
-    return "Error";
-  }
-};
