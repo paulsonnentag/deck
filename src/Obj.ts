@@ -5,6 +5,7 @@ import { Card, CardProps } from "./Card";
 import { Field, FieldProps } from "./Field";
 import { shouldNeverHappen } from "./utils";
 import { applyExtensions } from "./extensions";
+import { uuid } from "@automerge/automerge";
 import * as API from "./api";
 
 export type Expression = {
@@ -71,9 +72,7 @@ export abstract class PersistedObject<T extends ObjProps> {
     const parent = this.parent();
 
     if (parent) {
-      parent.update((card) => {
-        delete card.childIds[this.props.id];
-      });
+      parent.removeChild(this as Obj);
     }
 
     getObjectDocHandle().change((doc) => {
@@ -115,7 +114,7 @@ export const registerObjectsDocHandle = (docHandle: DocHandle<ObjectDoc>) => {
   objectsDocHandle = docHandle;
 };
 
-const getObjectDocHandle = (): DocHandle<ObjectDoc> => {
+export const getObjectDocHandle = (): DocHandle<ObjectDoc> => {
   if (!objectsDocHandle) {
     shouldNeverHappen("No objects doc handle registered");
   }
@@ -141,29 +140,61 @@ export const getObjectById = (id: string): Obj => {
     shouldNeverHappen(`Object with id ${id} not found`);
   }
 
+  const obj = objFromProps(props);
+  objects[id] = obj;
+  return obj;
+};
+
+const objFromProps = (props: ObjProps): Obj => {
   switch (props.type) {
     case "card": {
-      const card = new Card(props);
-      objects[id] = card;
-      return card;
+      return new Card(props);
     }
     case "field": {
-      const field = new Field(props);
-      objects[id] = field;
-      return field;
+      return new Field(props);
     }
   }
 };
 
-export const create = <Obj extends PersistedObject<P>, P extends ObjProps>(
+export const findOrCreate = <
+  Obj extends PersistedObject<P>,
+  P extends ObjProps
+>(
   constructor: new (props: P) => Obj,
-  props: P
+  props: P,
+  create?: (obj: Obj) => void
 ): Obj => {
+  let obj = objects[props.id] as Obj;
+  if (obj) {
+    console.log("find", props.id);
+    return obj;
+  }
+
+  console.log("create", props.id);
+
   getObjectDocHandle().change((doc) => {
     doc.objects[props.id] = props;
   });
+  obj = new constructor(props);
+  objects[props.id] = obj as any;
 
-  return new constructor(props);
+  create?.(obj);
+
+  return obj;
+};
+
+export const create = <Obj extends PersistedObject<P>, P extends ObjProps>(
+  constructor: new (props: P) => Obj,
+  props: Omit<P, "id">
+): Obj => {
+  const id = uuid();
+  const propsWithId = { ...props, id } as P;
+
+  getObjectDocHandle().change((doc) => {
+    doc.objects[id] = propsWithId;
+  });
+
+  return new constructor(propsWithId);
 };
 
 export const updateExtensionState = <T>(

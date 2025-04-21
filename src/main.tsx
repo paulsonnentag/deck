@@ -86,6 +86,17 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     week: 1,
   };
 
+  const field: FieldProps = {
+    id: uuid(),
+    x: 0,
+    y: 0,
+    type: "field",
+    value: {
+      type: "expression",
+      source: "dayCard(new Date())",
+    },
+  };
+
   const rootCard: CardProps = {
     id: uuid(),
     x: 0,
@@ -95,20 +106,22 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     height: 0,
     color: "black",
     childIds: {
-      [calendarCard.id]: true,
+      [field.id]: true,
+      //[calendarCard.id]: true,
     },
   };
 
   return repo.create({
     rootObjectId: rootCard.id,
     objects: {
+      [field.id]: field,
       [rootCard.id]: rootCard,
-      [calendarCard.id]: calendarCard,
-      [nextButton.id]: nextButton,
-      [prevButton.id]: prevButton,
-      [nextLabel.id]: nextLabel,
-      [prevLabel.id]: prevLabel,
-      [weekNumberField.id]: weekNumberField,
+      // [calendarCard.id]: calendarCard,
+      // [nextButton.id]: nextButton,
+      // [prevButton.id]: prevButton,
+      // [nextLabel.id]: nextLabel,
+      // [prevLabel.id]: prevLabel,
+      // [weekNumberField.id]: weekNumberField,
     },
   });
 };
@@ -129,7 +142,7 @@ if (!documentId) {
   (window as any).docHandle = handle;
 
   // Update URL with the new document ID
-  window.location.hash = documentId;
+  //window.location.hash = documentId;
 } else {
   const handle = repo.find<ObjectDoc>(documentId);
   (window as any).docHandle = handle;

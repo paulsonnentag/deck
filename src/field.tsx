@@ -3,14 +3,15 @@ import {
   BaseProps,
   create,
   Expression,
+  findOrCreate,
   isExpression,
-  Obj,
+  ObjView,
   ObjViewProps,
   PersistedObject,
 } from "./Obj";
 import { Color, colorToHex, FontSize, fontSizeToPx } from "./Inspector";
 import { TextInput } from "./TextInput";
-
+import { Card, CardProps, wrapCard } from "./Card";
 export type FieldProps = BaseProps & {
   type: "field";
   value: string | Expression;
@@ -22,7 +23,6 @@ export class Field extends PersistedObject<FieldProps> {
   copy(): Field {
     return create<Field, FieldProps>(Field, {
       ...structuredClone(this.props),
-      id: uuid(),
     });
   }
 
@@ -52,6 +52,34 @@ export class Field extends PersistedObject<FieldProps> {
       ? this.parent()!.evaluate(value.source)
       : value;
 
+    if (result instanceof Card) {
+      const container = findOrCreate<Card, CardProps>(Card, {
+        type: "card",
+        id: `container-card-${id}`,
+        x,
+        y,
+        width: 100,
+        height: 100,
+        childIds: {},
+      });
+
+      container.parentId = this.parentId;
+
+      const wrappedCard = wrapCard(container, result);
+
+      return (
+        <ObjView
+          obj={wrappedCard}
+          draggedNode={draggedNode}
+          selectedNode={selectedNode}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          isParentLocked={isParentLocked}
+        />
+      );
+    }
+
     return (
       <div
         className={`px-1 border
@@ -66,21 +94,21 @@ export class Field extends PersistedObject<FieldProps> {
           color: colorToHex(color),
         }}
         onPointerDown={(e) => {
-          if (isLocked) {
+          if (isParentLocked) {
             return;
           }
 
           onPointerDown(e, this);
         }}
         onPointerMove={(e) => {
-          if (isLocked) {
+          if (isParentLocked) {
             return;
           }
 
           onPointerMove(e, this);
         }}
         onPointerUp={(e) => {
-          if (isLocked) {
+          if (isParentLocked) {
             return;
           }
 

@@ -1,4 +1,3 @@
-import { uuid } from "@automerge/automerge";
 import { colorToHex } from "./Inspector";
 import { Color, colorToBackgroundColorHex } from "./Inspector";
 import {
@@ -9,6 +8,7 @@ import {
   PersistedObject,
   create,
   getObjectById,
+  getObjectDocHandle,
 } from "./Obj";
 
 export type CardProps = BaseProps & {
@@ -37,10 +37,21 @@ export class Card extends PersistedObject<CardProps> {
     });
   }
 
+  addChild(child: Obj) {
+    this.update((props) => {
+      props.childIds[child.props.id] = true;
+    });
+  }
+
+  removeChild(child: Obj) {
+    this.update((props) => {
+      delete props.childIds[child.props.id];
+    });
+  }
+
   copy(): Card {
-    return create(Card, {
+    return create<Card, CardProps>(Card, {
       ...structuredClone(this.props),
-      id: uuid(),
       childIds: Object.fromEntries(
         this.children().map((child) => [child.copy().props.id, true])
       ),
@@ -55,14 +66,14 @@ export class Card extends PersistedObject<CardProps> {
     onPointerUp,
     isParentLocked,
   }: ObjViewProps) {
-    const id = this.props.id;
-    const width = this.props.width;
-    const height = this.props.height;
-    const x = this.props.x;
-    const y = this.props.y;
-    const fillMode = this.props.fillMode;
-    const color = this.props.color ?? "black";
-    const isSelfLocked = this.props.isLocked;
+    const id = this.get("id");
+    const width = this.get("width");
+    const height = this.get("height");
+    const x = this.get("x");
+    const y = this.get("y");
+    const fillMode = this.get("fillMode");
+    const color = this.get("color");
+    const isSelfLocked = this.get("isLocked");
     const isLocked = isSelfLocked || isParentLocked;
 
     const isBeingDragged = draggedObj?.props.id === id;
@@ -171,10 +182,18 @@ export class Card extends PersistedObject<CardProps> {
   }
 }
 
-export const addChild = (card: CardProps, child: Obj) => {
-  card.childIds[child.props.id] = true;
-};
+export const wrapCard = (wrapper: Card, content: Card) => {
+  const obj = Object.create(wrapper);
 
-export const removeChild = (card: CardProps, child: Obj) => {
-  delete card.childIds[child.props.id];
+  obj.props.childIds = content.props.childIds;
+
+  obj.addChild = (child: Obj) => {
+    content.addChild(child);
+  };
+
+  obj.removeChild = (child: Obj) => {
+    content.removeChild(child);
+  };
+
+  return obj;
 };

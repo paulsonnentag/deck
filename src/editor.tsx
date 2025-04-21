@@ -3,10 +3,17 @@ import { DocumentId } from "@automerge/automerge-repo";
 import { useDocument } from "@automerge/automerge-repo-react-hooks";
 import * as Automerge from "@automerge/automerge/next";
 import { PointerEvent, useEffect, useMemo, useState } from "react";
-import { addChild, Card, CardProps } from "./Card";
+import { Card, CardProps } from "./Card";
 import { useStaticCallback } from "./hooks";
 import { Inspector, useInspectorState } from "./Inspector";
-import { create, getObjectById, Obj, ObjView, useRootObject } from "./Obj";
+import {
+  create,
+  getObjectById,
+  Obj,
+  ObjectDoc,
+  ObjView,
+  useRootObject,
+} from "./Obj";
 import { SwallowPointerEvents } from "./utils";
 import { uuid } from "@automerge/automerge";
 import { Field, FieldProps } from "./Field";
@@ -77,7 +84,7 @@ type AppProps = {
 
 export const Editor = ({ documentId }: AppProps) => {
   const rootCard = useRootObject();
-  const [objectsDoc] = useDocument<ObjectsDoc>(documentId);
+  const [objectsDoc] = useDocument<ObjectDoc>(documentId);
   const [tool, setTool] = useState<ToolState>({ type: "pointer" });
 
   const [clipboard, setClipboard] = useState<Obj | null>(null);
@@ -129,9 +136,7 @@ export const Editor = ({ documentId }: AppProps) => {
 
         console.log("newObj", newObj);
 
-        parent.update((card) => {
-          addChild(card, newObj);
-        });
+        parent.addChild(newObj);
 
         setTool({
           type: "pointer",
@@ -167,14 +172,14 @@ export const Editor = ({ documentId }: AppProps) => {
   });
 
   const onPointerDown = useStaticCallback(
-    (event: PointerEvent<HTMLDivElement>, node: Obj, handle?: Handle) => {
+    (event: PointerEvent<HTMLDivElement>, obj: Obj, handle?: Handle) => {
       if (event.isPrimary === false || !rootCard) return;
 
       event.stopPropagation();
 
       switch (tool.type) {
         case "card": {
-          const parentCard: Card = node instanceof Card ? node : node.parent()!;
+          const parentCard: Card = obj instanceof Card ? obj : obj.parent()!;
           const offset = parentCard.globalPos();
 
           const newCard = create(Card, {
@@ -188,9 +193,7 @@ export const Editor = ({ documentId }: AppProps) => {
             y: Math.round(event.clientY - offset.y),
           } as CardProps);
 
-          parentCard.update((card) => {
-            addChild(card, newCard);
-          });
+          parentCard.addChild(newCard);
 
           setTool({
             type: "card",
@@ -200,12 +203,14 @@ export const Editor = ({ documentId }: AppProps) => {
         }
 
         case "pointer": {
-          const offset = node.globalPos();
+          const offset = obj.globalPos();
+
+          console.log("pointer down", obj);
 
           setTool({
             type: "pointer",
             state: {
-              activeObjectId: node.props.id,
+              activeObjectId: obj.props.id,
               dragState: {
                 handle,
                 offset: {
@@ -219,20 +224,17 @@ export const Editor = ({ documentId }: AppProps) => {
         }
 
         case "field": {
-          const parentCard: Card = node instanceof Card ? node : node.parent()!;
+          const parentCard: Card = obj instanceof Card ? obj : obj.parent()!;
           const offset = parentCard.globalPos();
 
           const newField = create<Field, FieldProps>(Field, {
-            id: uuid(),
             type: "field",
             x: Math.round(event.clientX - offset.x),
             y: Math.round(event.clientY - offset.y),
             value: "",
           });
 
-          parentCard.update((card) => {
-            addChild(card, newField);
-          });
+          parentCard.addChild(newField);
 
           setTool({
             type: "pointer",
@@ -344,13 +346,8 @@ export const Editor = ({ documentId }: AppProps) => {
               node instanceof Card ? node : node.parent()!;
 
             if (activeObject.parent() !== draggedOverCard) {
-              activeObject.parent()!.update((parent) => {
-                delete parent.childIds[activeObject.props.id];
-              });
-
-              draggedOverCard.update((card) => {
-                card.childIds[activeObject.props.id] = true;
-              });
+              activeObject.parent()!.removeChild(activeObject);
+              draggedOverCard.addChild(activeObject);
 
               const offset = node.globalPos();
               activeObject.update((node) => {
