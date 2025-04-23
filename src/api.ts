@@ -1,5 +1,6 @@
 import { Card, CardProps } from "./Card";
-import { findOrCreate } from "./Obj";
+import { Field } from "./Field";
+import { create, findOrCreate } from "./Obj";
 
 export const addDay = (date: Date, days: number) => {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
@@ -14,8 +15,6 @@ export const dayCard = (date: Date) => {
   const month = date.getMonth();
   const year = date.getFullYear();
 
-  console.log(day, month, year);
-
   return findOrCreate<Card, CardProps>(
     Card,
     {
@@ -27,8 +26,15 @@ export const dayCard = (date: Date) => {
       height: 100,
       childIds: {},
     },
-    () => {
-      console.log("create");
+    (card) => {
+      const field = create(Field, {
+        type: "field",
+        x: 0,
+        y: 0,
+        value: `${year}-${month}-${day}`,
+      });
+
+      card.addChild(field);
     }
   );
 };

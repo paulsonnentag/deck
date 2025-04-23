@@ -1,3 +1,4 @@
+import { Field } from "./Field";
 import { colorToHex } from "./Inspector";
 import { Color, colorToBackgroundColorHex } from "./Inspector";
 import {
@@ -32,6 +33,10 @@ export class Card extends PersistedObject<CardProps> {
   children() {
     return Object.keys(this.props.childIds).map((id) => {
       const child = getObjectById(id)!;
+
+      if (child instanceof Field) {
+      }
+
       child.parentId = this.props.id;
       return child;
     });
@@ -181,19 +186,3 @@ export class Card extends PersistedObject<CardProps> {
     );
   }
 }
-
-export const wrapCard = (wrapper: Card, content: Card) => {
-  const obj = Object.create(wrapper);
-
-  obj.props.childIds = content.props.childIds;
-
-  obj.addChild = (child: Obj) => {
-    content.addChild(child);
-  };
-
-  obj.removeChild = (child: Obj) => {
-    content.removeChild(child);
-  };
-
-  return obj;
-};

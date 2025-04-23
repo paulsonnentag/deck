@@ -97,6 +97,16 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     },
   };
 
+  const anotherCard: CardProps = {
+    id: uuid(),
+    x: 200,
+    y: 200,
+    type: "card",
+    width: 500,
+    height: 200,
+    childIds: {},
+  };
+
   const rootCard: CardProps = {
     id: uuid(),
     x: 0,
@@ -107,6 +117,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     color: "black",
     childIds: {
       [field.id]: true,
+      [anotherCard.id]: true,
       //[calendarCard.id]: true,
     },
   };
@@ -116,6 +127,7 @@ const createObjectDoc = (repo: Repo): DocHandle<ObjectDoc> => {
     objects: {
       [field.id]: field,
       [rootCard.id]: rootCard,
+      [anotherCard.id]: anotherCard,
       // [calendarCard.id]: calendarCard,
       // [nextButton.id]: nextButton,
       // [prevButton.id]: prevButton,

@@ -90,6 +90,10 @@ export abstract class PersistedObject<T extends ObjProps> {
     return value;
   }
 
+  getSource(): Field | null {
+    return null;
+  }
+
   evaluate(expression: string) {
     try {
       return new Function(
@@ -166,11 +170,8 @@ export const findOrCreate = <
 ): Obj => {
   let obj = objects[props.id] as Obj;
   if (obj) {
-    console.log("find", props.id);
     return obj;
   }
-
-  console.log("create", props.id);
 
   getObjectDocHandle().change((doc) => {
     doc.objects[props.id] = props;

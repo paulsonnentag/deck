@@ -231,7 +231,6 @@ export const useInspectorState = ({
 
       if (selectedObject instanceof Card) {
         const card = selectedObject as Card;
-        console.log("update", state.isLocked);
         card.update((props) => {
           if (state.color) {
             props.color = state.color;

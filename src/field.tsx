@@ -5,6 +5,7 @@ import {
   Expression,
   findOrCreate,
   isExpression,
+  Obj,
   ObjView,
   ObjViewProps,
   PersistedObject,
@@ -52,20 +53,12 @@ export class Field extends PersistedObject<FieldProps> {
       ? this.parent()!.evaluate(value.source)
       : value;
 
+    console.log("result", result);
+
     if (result instanceof Card) {
-      const container = findOrCreate<Card, CardProps>(Card, {
-        type: "card",
-        id: `container-card-${id}`,
-        x,
-        y,
-        width: 100,
-        height: 100,
-        childIds: {},
-      });
+      const wrappedCard = getComputedCard(this, result);
 
-      container.parentId = this.parentId;
-
-      const wrappedCard = wrapCard(container, result);
+      console.log("wrappedCard", wrappedCard.props.id);
 
       return (
         <ObjView
@@ -146,4 +139,35 @@ export class Field extends PersistedObject<FieldProps> {
       </div>
     );
   }
+
+  value() {
+    if (typeof this.props.value === "string") {
+      return this.props.value;
+    }
+
+    return this.parent()!.evaluate(this.props.value.source);
+  }
 }
+
+export const getComputedCard = (field: Field, computedCard: Card) => {
+  const override = field.props as unknown as CardProps;
+
+  const card = new Card({
+    ...override,
+    width: override.width || computedCard.props.width,
+    height: override.height || computedCard.props.height,
+    childIds: computedCard.props.childIds,
+  });
+
+  card.parentId = field.parentId;
+
+  card.addChild = (child: Obj) => {
+    computedCard.addChild(child);
+  };
+
+  card.removeChild = (child: Obj) => {
+    computedCard.removeChild(child);
+  };
+
+  return card;
+};

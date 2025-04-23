@@ -129,12 +129,8 @@ export const Editor = ({ documentId }: AppProps) => {
       // paste card
     } else if (event.code === "KeyV" && (event.ctrlKey || event.metaKey)) {
       if (clipboard) {
-        console.log("paste card", clipboard);
-
         const newObj = clipboard.copy();
         const parent = clipboard.parent() as Card;
-
-        console.log("newObj", newObj);
 
         parent.addChild(newObj);
 
@@ -204,8 +200,6 @@ export const Editor = ({ documentId }: AppProps) => {
 
         case "pointer": {
           const offset = obj.globalPos();
-
-          console.log("pointer down", obj);
 
           setTool({
             type: "pointer",
@@ -347,6 +341,7 @@ export const Editor = ({ documentId }: AppProps) => {
 
             if (activeObject.parent() !== draggedOverCard) {
               activeObject.parent()!.removeChild(activeObject);
+
               draggedOverCard.addChild(activeObject);
 
               const offset = node.globalPos();
